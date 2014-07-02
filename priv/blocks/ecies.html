@@ -1,0 +1,126 @@
+<div class=main>
+  <!-- LIBS -->
+
+  <!-- Bitcore -->
+
+  <script type="text/javascript" src="../bitcore/browser/bundle.js"></script>
+
+  <!-- BitcoinJS -->
+
+  <script type="text/javascript" src="../bitcoinjs/crypto-js/crypto.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/crypto-js/sha256.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/crypto-js/ripemd160.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/jsbn/prng4.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/jsbn/rng.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/jsbn/jsbn.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/jsbn/jsbn2.js"></script>
+
+  <script type="text/javascript" src="../bitcoinjs/jsbn/ec.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/jsbn/sec.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/events/eventemitter.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/bitcoin.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/util.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/base58.js"></script>
+
+  <script type="text/javascript" src="../bitcoinjs/address.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/ecdsa.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/eckey.js"></script>
+  <script type="text/javascript" src="../bitcoinjs/paillier.js"></script>
+
+  <script type="text/javascript" src="../bitcoinjs/paillier.js"></script>
+
+  <!-- RSA -->
+
+  <!-- for pkcs5pkey -->
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/core.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/cipher-core.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/md5.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/tripledes.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/enc-base64.js"></script>
+  <!-- for crypto -->
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/sha1.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/sha256.js"></script>
+  <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/components/aes.js"></script>
+  <!-- for crypto, asn1, asn1x509 -->
+  <script src="http://yui.yahooapis.com/2.9.0/build/yahoo/yahoo-min.js"></script>
+  <!-- for asn1x509(stohex) -->
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/base64x-1.1.min.js"></script>
+
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/prng4.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/rng.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/rsa.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/rsa2.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/base64.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/asn1hex-1.1.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/rsapem-1.1.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/rsasign-1.2.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/x509-1.1.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/pkcs5pkey-1.0.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/asn1-1.0.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/asn1x509-1.0.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/crypto-1.1.js"></script>
+
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/ec.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ext/ec-patch.js"></script>
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/ecdsa-modified-1.0.js"></script>
+
+  <script language="JavaScript" type="text/javascript" src="../jsrsasign/keyutil-1.0.js"></script>
+
+  <!-- jQuery -->
+
+  <script type="text/javascript" src="/jquery/jquery-1.11.1.min.js"></script>
+
+
+  <!-- TEXT -->
+
+  <h3>ECIES</h3>
+
+  <h4>Instructions</h4>
+  <p>
+    <ul>
+      <li>
+        <b>Keys and crypto data:</b>
+        <br />
+        <br />
+        <ul>
+          <li><b>EC privkey:</b>
+            <br />
+            <p id=ec_privkey style="font-family: monospace; white-space: pre;"><font color=red>[A key should appear here.]</font></p>
+          </li>
+          <li><b>EC pubkey:</b>
+            <br />
+            <p id=ec_pubkey style="font-family: monospace; white-space: pre;"><font color=red>[A key should appear here.]</font></p>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </p>
+
+  <hr />
+
+  <!-- SCRIPTS -->
+
+  <script>
+
+console.log(ok = "start");
+
+var bitcore = require('bitcore');
+
+var key = new bitcore.Key();
+key.private = bitcore.util.sha256('test');
+key.regenerateSync();
+
+console.log("key.private: " + key.private.toString('hex'));
+console.log("key.public: " + key.public.toString('hex'));
+
+// Print key to screen
+var ECtag = document.getElementById("ec_privkey");
+if(ECtag) ECtag.innerHTML = "<font color=blue>" + key.private.toString('hex') + "</font>";
+var ECtag = document.getElementById("ec_pubkey");
+if(ECtag) ECtag.innerHTML = "<font color=blue>" + key.public.toString('hex') + "</font>";
+
+
+console.log(ok = "end");
+
+</script>
+</div>

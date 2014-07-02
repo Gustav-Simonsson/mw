@@ -77,6 +77,8 @@ start(_Type, _Args) ->
     HTMLDispatch = cowboy_router:compile(
                      [
                       {'_', [
+                             {"/ecies.html",    page_handler, {ecies}},
+
                              {"/index.html",    page_handler, {index}},
                              {"/about.html",    page_handler, {about}},
                              {"/intro.html",    page_handler, {intro}},

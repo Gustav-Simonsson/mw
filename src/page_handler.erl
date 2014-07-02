@@ -64,6 +64,10 @@ page(Req, State) ->
             <<"</body></html>\n">>],
     {HTML, Req, somepath}. %% TODO somepath?
 
+%% tests/dev
+html(_Req, {ecies}=_State) ->
+    block(ecies);
+
 %% home page inner html
 html(_Req, {index}=_State) ->
     Bin = block(index),
