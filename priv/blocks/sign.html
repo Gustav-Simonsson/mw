@@ -170,18 +170,18 @@
     var t2Raw = "$T2_RAW";
     var t2SighashInput0 = "$T2_SIGHASH_INPUT_0";
     var t2SighashInput1 = "$T2_SIGHASH_INPUT_1";
-    var giverECPubkeyBase58Check = "$GIVER_EC_PUBKEY";
-    var takerECPubkeyBase58Check = "$TAKER_EC_PUBKEY";
+    var giverECPubkeyB58Check = "$GIVER_EC_PUBKEY";
+    var takerECPubkeyB58Check = "$TAKER_EC_PUBKEY";
 
     console.log("check");
 
     var signerPrivKey0 = document.getElementById("signer_priv_key");
-    var signerPrivkeyBase58Check = signerPrivKey0.value;
+    var signerPrivkeyB58Check = signerPrivKey0.value;
 
     // validate input
     var signerECKey0;
     try {
-        signerECKey0 = Bitcoin.ECKey.decodeString(signerPrivkeyBase58Check);
+        signerECKey0 = Bitcoin.ECKey.decodeString(signerPrivkeyB58Check);
     } catch (err) {
         console.log(err);
         fail("bad key: " + err);
@@ -190,15 +190,15 @@
 
     var signerECKey = new Bitcoin.ECKey(signerECKey0);
     signerECKey.setCompressed(true);
-    var signerECPubkeyBase58Check = signerECKey.getExportedPublicKey();
+    var signerECPubkeyB58Check = signerECKey.getExportedPublicKey();
 
-    console.log("EC pasted pub key (base58): " + signerECPubkeyBase58Check);
-    console.log("EC giver pub key (base58): " + giverECPubkeyBase58Check);
-    console.log("EC taker pub key (base58): " + takerECPubkeyBase58Check);
+    console.log("EC pasted pub key (base58): " + signerECPubkeyB58Check);
+    console.log("EC giver pub key (base58): " + giverECPubkeyB58Check);
+    console.log("EC taker pub key (base58): " + takerECPubkeyB58Check);
 
     // is it the giver or taker we are serving here?
-    var isGiver = signerECPubkeyBase58Check == giverECPubkeyBase58Check;
-    var isTaker = signerECPubkeyBase58Check == takerECPubkeyBase58Check;
+    var isGiver = signerECPubkeyB58Check == giverECPubkeyB58Check;
+    var isTaker = signerECPubkeyB58Check == takerECPubkeyB58Check;
 
     // sign for giver
     if(isGiver) {
@@ -225,7 +225,7 @@
     var contract_id = "$CONTRACT_ID";
     var url = "http://127.0.0.1:8081/submit-t2-signature/{" +
               "\"contract_id\":\"" + encodeURIComponent(contract_id) + "\"," +
-              "\"ec_pubkey\":\"" + encodeURIComponent(signerECPubkeyBase58Check) + "\"," +
+              "\"ec_pubkey\":\"" + encodeURIComponent(signerECPubkeyB58Check) + "\"," +
               "\"t2_signature\":\"" + encodeURIComponent(signatureHex) + "\"}";
 
     console.log("url: " + url);

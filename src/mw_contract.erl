@@ -365,7 +365,7 @@ do_get_t3_for_signing(ContractId, ToAddress) ->
             {ok, OPK} = mw_pg:select_oracle_privkey(ContractId, YesOrNo),
             EncEventKey = mw_lib:bin_to_hex(GetInfo(EventKeyName)),
             [
-             {"oracle_privkey", OPK},
+             {"oracle_privkey", base64:encode(OPK)}, %% Avoids line breaks in JS
              {"enc_event_privkey", EncEventKey},
              {"t3-sighash", T3Sighash},
              {"t3-hash", T3Hash},
@@ -383,7 +383,7 @@ do_submit_t3_signatures(ContractId, T3Raw, T3Signature1, T3Signature2) ->
     NewT3Raw      = proplists:get_value("new-t3-raw", ReqRes),
     T3Broadcasted = proplists:get_value("t3-broadcasted", ReqRes),
     case T3Broadcasted of
-        "true" -> awesome;
+        "true" -> continue;
         _      -> ?API_ERROR(?T3_NOT_BROADCASTED)
     end,
     ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_SIGNED_T3),
@@ -622,7 +622,7 @@ manual_test_2() ->
     {ok, _} = create_contract(1),
     ok.
 
-decryption_test(UserECPrivKey, UserRSAPrivKeyPEM,
+decryption_test(_UserECPrivKey, UserRSAPrivKeyPEM,
                 OraclePrivKeyHex, EncEventKey) ->
     {ok, UserRSAPrivKey} = pem_decode_bin(UserRSAPrivKeyPEM),
     {ok, OraclePrivKey} = pem_decode_bin(mw_lib:hex_to_bin(OraclePrivKeyHex)),
