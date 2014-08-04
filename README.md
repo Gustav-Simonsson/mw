@@ -12,6 +12,8 @@ The AIX WC14 concept enables football bets on the Bitcoin blockchain that are de
      Created     : 24 May 2014
      Changed     : 21 June 2014
 
+![alt tag](../master/priv/blade_runner/intro.gif?raw=true)
+
 Status
 ------
 
@@ -167,6 +169,8 @@ Test BitcoinJS with [http://localhost:8080/hello-js.html](http://localhost:8080/
 This will give you a page with basic BitcoinJS operations like key creation,
 hasing and signing.
 
+![alt tag](../master/priv/blade_runner/deckard_rachael.jpg?raw=true)
+
 ### Generate test keys
 
 ``` bash
@@ -247,3 +251,5 @@ Submit t3 signatures:
 ``` bash
 curl -v -H "Accept: application/json" -H "Content-type: application/json" -X GET -d '{"t3_raw":"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF","t3_signature1":"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", "t3_signature2":"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"}'  http://localhost:8081/submit-t3-signatures/1
 ```
+
+![alt tag](../master/priv/blade_runner/rachael2.jpg?raw=true)
