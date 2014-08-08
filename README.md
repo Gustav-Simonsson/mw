@@ -1,23 +1,23 @@
-AIX World Cup 2014 Middle Ware
-==============================
+AIX Bitcoin Contract Middleware
+===============================
 
-The AIX WC14 concept enables football bets on the Bitcoin blockchain that are decentralized, oracle-driven contacts, requiring less trust.
+The AIX contract middleware enables insurances and bets on the Bitcoin blockchain that are decentralized, oracle-driven, trust-less contacts.
 
-     Description : Mw - AI Effect World Cup 2014 - Middle Server
-     Version     : 0.6.x/JSON flow
+     Description : Mw - AI Effect Bitcoin Contract Middleware Server
+     Version     : 0.9.x/T3
      File        : README.md
-     Copyright   : AI Effect Group, Berlin
-     Author      : H. Diedrich <hd2010@eonblast.com>
-     License     : MIT
+     Copyright   : ai effect UG, Berlin
+     Author      : H. Diedrich <hd2010@eonblast.com>, G. Simonsson <gustav.simonsson@gmail.com>
+     License     : all rights reserved
      Created     : 24 May 2014
-     Changed     : 21 June 2014
+     Changed     : 08 August 2014
 
 ![alt tag](../master/priv/blade_runner/intro.gif?raw=true)
 
 Status
 ------
 
-This is the first complete 'Mw' stack of Cowboy, PostgreSQL and BitcoinJS. It has a minmal cowboy setup serving static pages in `priv/` and assembling dynamic pages from flat data structures and templates in `priv/blocks/`. PostgreSQL I don't know what it's doing at this point but it runs with the server down, which is good. And BitcoinJS is featured in the old de facto standard 0.1.3, with but a hello-js.html available as template at this point. There are 'blocks' for all pages now that are part of the usage flow.
+This is the 'Mw' stack of Cowboy, PostgreSQL and BitcoinJS. It has a minmal cowboy setup serving static pages in `priv/` and assembling dynamic pages from flat data structures and templates in `priv/blocks/`. PostgreSQL is used to persist contract state. The server can be started up without PostgreSQL running, for quick tests. BitcoinJS is currently sometimes used with stable 1.0.2 and at other times with the old de-facto standard 0.1.3. There are 'blocks' for all pages that are part of the usage flow.
 
 Requirements
 ------------
@@ -85,6 +85,7 @@ Content
 
 Mw runs two http servers side by side. One for API2 serving JSON. And the web server for the main site, for information about the concept, and the functional prototype, including JS scripts.
 
+There is a third coming as dedicated interface to Android apps.
 
 ### API2 JSON
 
