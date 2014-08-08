@@ -30,7 +30,7 @@
 -define(DEFAULT_AES_IV, <<0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0>>).
 -define(BINARY_PREFIX, <<"A1EFFEC100000000">>).
 
--define(BJ_T2_MOCKED, true).
+-define(BJ_T2_MOCKED, false).
 -define(BJ_URL_GET_UNSIGNED_T2,     <<"http://orders3.freshworks2.net:4567/get-unsigned-t2">>).
 -define(BJ_URL_SUBMIT_T2_SIGNATURE, <<"http://orders3.freshworks2.net:4567/submit-t2-signature">>).
 
@@ -353,7 +353,7 @@ do_submit_t2_signature(ContractId, ECPubkey, T2Signature) ->
                    end,
     ok = mw_pg:insert_contract_event(ContractId, SignEvent),
     case proplists:get_value(<<"t2-broadcasted">>, ReqRes) of
-        <<"true">> ->
+        true ->
             ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_T2_BROADCASTED);
         <<"false">> ->
             ?API_ERROR(?EC_PUBKEY_MISMATCH)
@@ -489,7 +489,7 @@ bj_req_submit_t2_signature(ECPubkey, T2Signature, T2Raw, GiverOrTaker) ->
            [
             {<<"t2-signature">>, T2Signature},
             {<<"t2-raw">>, T2Raw},
-            {<<"pubkey">>, ECPubkey},
+            {<<"pubkey">>, mw_lib:bin_to_hex(mw_lib:dec_b58check(ECPubkey))},
             {<<"sign-for">>, GiverOrTaker}
            ]),
     %% TODO: parse response to proplist
@@ -500,7 +500,7 @@ bj_req_submit_t2_signature(ECPubkey, T2Signature, T2Raw, GiverOrTaker) ->
                  [
                   {<<"new-t2-hash">>, <<"A1EFFEC100000000FF04">>},
                   {<<"t2-raw-partially-signed">>, <<"A1EFFEC100000000FF05">>},
-                  {<<"t2-broadcasted">>, <<"true">>}
+                  {<<"t2-broadcasted">>, true}
                  ]
                  };
             false ->
@@ -562,8 +562,16 @@ bj_req_submit_t3_signatures(T3Raw, T3Signature1, T3Signature2) ->
         end,
     Res.
 
-bitcoin_signature_der(<<48,_,2,RL,_R:RL/bytes,2,SL,_S:SL/bytes>>) -> true;
-bitcoin_signature_der(_Bin)                                       -> false.
+bitcoin_signature_der(<<16#30,
+                        _TotalLen,
+                        16#02,
+                        RLen,
+                        _R:RLen/bytes,
+                        16#02,
+                        SLen,
+                        _S:SLen/bytes,
+                        _HashType>>) -> true;
+bitcoin_signature_der(_Bin) -> false.
 
 pem_decode_bin(Bin) ->
     [Entry] = public_key:pem_decode(Bin),
