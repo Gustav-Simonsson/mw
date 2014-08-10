@@ -33,10 +33,11 @@
 -define(BJ_T2_MOCKED, false).
 -define(BJ_URL_GET_UNSIGNED_T2,     <<"http://orders3.freshworks2.net:4567/get-unsigned-t2">>).
 -define(BJ_URL_SUBMIT_T2_SIGNATURE, <<"http://orders3.freshworks2.net:4567/submit-t2-signature">>).
+-define(BJ_URL_SIGN_TX,             <<"http://orders3.freshworks2.net:4567/sign-transaction">>).
 
--define(BJ_T3_MOCKED, true).
--define(BJ_URL_GET_UNSIGNED_T3,     <<"http://localhost/get-unsigned-t3">>).
--define(BJ_URL_SUBMIT_T3_SIGNATURES, <<"http:///submit-t3-signatures">>).
+-define(BJ_T3_MOCKED, false).
+-define(BJ_URL_GET_UNSIGNED_T3,     <<"http://orders3.freshworks2.net:4567/get-unsigned-t3">>).
+-define(BJ_URL_SUBMIT_T3_SIGNATURES, <<"TODO">>).
 -define(BJ_REQUEST_TIMEOUT, 5000).
 
 %%%===========================================================================
@@ -332,12 +333,14 @@ do_enter_contract(ContractId,
 do_submit_t2_signature(ContractId, ECPubkey, T2Signature) ->
     {ok, Info}  = get_contract_info(ContractId),
     GetInfo     = ?GET(Info),
-    GiverPubkey = GetInfo("giver_ec_pubkey"),
     TakerPubkey = GetInfo("taker_ec_pubkey"),
 
-    %% validate contract event states? e.g. duplicated signing reqs
+    %% TODO: re-design this completely; now we hardcode here that it's only
+    %% used for when taker submits her signature, and then we hook in and
+    %% sign for giver by calling Bj for BOTH giver's t2 signing and also
+    %% submitting it. This is rather hacky and not clean.
+
     GiverOrTaker = case ECPubkey of
-                       GiverPubkey -> <<"giver">>;
                        TakerPubkey -> <<"taker">>;
                        _           -> ?API_ERROR(?EC_PUBKEY_MISMATCH)
                    end,
@@ -347,16 +350,27 @@ do_submit_t2_signature(ContractId, ECPubkey, T2Signature) ->
     NewT2     = proplists:get_value(<<"t2-raw-partially-signed">>, ReqRes),
     NewT2Hash = proplists:get_value(<<"new-t2-hash">>, ReqRes),
     ok = mw_pg:update_contract_t2(ContractId, NewT2, NewT2Hash),
-    SignEvent = case GiverOrTaker of
-                       <<"giver">> -> ?STATE_DESC_GIVER_SIGNED_T2;
-                       <<"taker">> -> ?STATE_DESC_TAKER_SIGNED_T2
-                   end,
-    ok = mw_pg:insert_contract_event(ContractId, SignEvent),
-    case proplists:get_value(<<"t2-broadcasted">>, ReqRes) of
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_TAKER_SIGNED_T2),
+
+
+    T2SigHashInput0 = GetInfo("t2_sighash_input_0"),
+    {ok, ECPrivkey0} =
+        file:read_file(filename:join(code:priv_dir(middle_server),
+                                     "test_keys/giver_keys1/ec_privkey")),
+    GiverECPrivkey = binary:replace(ECPrivkey0, <<"\n">>, <<>>),
+    ReqRes2 =
+        bj_req_sign_transaction(NewT2, T2SigHashInput0, GiverECPrivkey),
+    %% Though the API returns "partially signed t2", in this case it is fully signed
+    FinalT2 = proplists:get_value(<<"t2-raw-partially-signed">>, ReqRes2),
+    FinalT2Hash = proplists:get_value(<<"new-t2-hash">>, ReqRes2),
+    ok = mw_pg:update_contract_t2(ContractId, FinalT2, FinalT2Hash),
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_GIVER_SIGNED_T2),
+
+    case proplists:get_value(<<"t2-broadcasted">>, ReqRes2) of
         true ->
             ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_T2_BROADCASTED);
         <<"false">> ->
-            ?API_ERROR(?EC_PUBKEY_MISMATCH)
+            ?API_ERROR(?T2_NOT_BROADCASTED)
     end,
     ok.
 
@@ -514,6 +528,24 @@ bj_req_submit_t2_signature(ECPubkey, T2Signature, T2Raw, GiverOrTaker) ->
         end,
     Res.
 
+%% Bj internally calls submit_t2_signature, this call wraps it.
+bj_req_sign_transaction(T2Raw, T2SigHashInput0, GiverECPrivkey) ->
+    QS = cow_qs:qs(
+           [
+            {<<"t2-raw">>, T2Raw},
+            {<<"t2-sig-hash-input0">>, T2SigHashInput0},
+            {<<"signer-privkey">>,
+             mw_lib:bin_to_hex(mw_lib:dec_b58check(GiverECPrivkey))},
+            {<<"sign-for">>, <<"giver">>}
+           ]),
+    URL = <<?BJ_URL_SIGN_TX/binary,
+            $?, QS/binary>>,
+    ?info("HURR URL: ~p", [URL]),
+    {ok, {{_StatusCode, _ReasonPhrase}, _Hdrs, ResponseBody}} =
+        mw_lib:bj_http_req(URL, [], 5000),
+    {PL} = jiffy:decode(ResponseBody),
+    PL.
+
 bj_req_get_unsigned_t3(T2Hash, ToAddress) ->
     QS = cow_qs:qs(
            [
@@ -533,8 +565,14 @@ bj_req_get_unsigned_t3(T2Hash, ToAddress) ->
                  ]
                  };
             false ->
-                mw_lib:bj_http_req(<<?BJ_URL_GET_UNSIGNED_T3/binary,
-                                     $?, QS/binary>>, [], 5000)
+                URL = <<?BJ_URL_GET_UNSIGNED_T3/binary,
+                        $?, QS/binary>>,
+                ?info("HURR URL: ~p", [URL]),
+                {ok, Resp = {{_StatusCode, _ReasonPhrase}, _Hdrs, ResponseBody}} =
+                    mw_lib:bj_http_req(URL, [], 5000),
+                ?info("HURR RESP: ~p", [Resp]),
+                {PL} = jiffy:decode(ResponseBody),
+                {ok, PL}
         end,
     Res.
 
@@ -557,8 +595,13 @@ bj_req_submit_t3_signatures(T3Raw, T3Signature1, T3Signature2) ->
                  ]
                  };
             false ->
-                mw_lib:bj_http_req(<<?BJ_URL_SUBMIT_T3_SIGNATURES/binary,
-                                     $?, QS/binary>>, [], 5000)
+                URL = <<?BJ_URL_SUBMIT_T3_SIGNATURES/binary,
+                        $?, QS/binary>>,
+                ?info("HURR URL: ~p", [URL]),
+                {ok, {{_StatusCode, _ReasonPhrase}, _Hdrs, ResponseBody}} =
+                    mw_lib:bj_http_req(URL, [], 5000),
+                {PL} = jiffy:decode(ResponseBody),
+                {ok, PL}
         end,
     Res.
 

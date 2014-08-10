@@ -9,7 +9,7 @@
 -define(RSA_PUBKEY_LEN, {4, "pem encoded rsa pubkey is not correct length (???)"}).
 
 -define(SIGNATURE_TYPE, {5, "signature is not hex encoded der encoded"}).
--define(EC_PUBKEY_MISMATCH, {7, "signing pubkey is not giver or taker"}).
+-define(EC_PUBKEY_MISMATCH, {7, "signing pubkey is not taker"}).
 
 -define(CONTRACT_FULL, {8, "contract full; has giver and taker"}).
 -define(CONTRACT_NOT_FOUND, {9, "contract not found"}).
