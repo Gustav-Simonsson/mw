@@ -28,6 +28,7 @@ start(_Type, _Args) ->
     application:load(lager),
     application:load(mw),
     %% TODO: application:ensure_all_started
+    application:set_env(lager, error_logger_hwm, 500),
     application:start(lager),
     try
         MwPriv = code:priv_dir(middle_server),
@@ -40,7 +41,6 @@ start(_Type, _Args) ->
             ?error("Mw node config error: ~p", [{E,R,erlang:get_stacktrace()}]),
             exit(mw_config_error)
     end,
-    application:set_env(lager, error_logger_hwm, 500),
     application:start(jiffy),
 
     %% -------------------------------------------------------------------

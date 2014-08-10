@@ -9,7 +9,7 @@
 -define(RSA_PUBKEY_LEN, {4, "pem encoded rsa pubkey is not correct length (???)"}).
 
 -define(SIGNATURE_TYPE, {5, "signature is not hex encoded der encoded"}).
--define(EC_PUBKEY_MISMATCH, {7, "signing pubkey is not giver or taker"}).
+-define(EC_PUBKEY_MISMATCH, {7, "signing pubkey is not taker"}).
 
 -define(CONTRACT_FULL, {8, "contract full; has giver and taker"}).
 -define(CONTRACT_NOT_FOUND, {9, "contract not found"}).
@@ -19,6 +19,8 @@
 -define(CONTRACT_ONLY_TAKER, {12, "contract only has taker"}).
 
 -define(CONTRACT_T2_NOT_COMPLETE, {13, "cannot get t3: t2 is not complete"}).
+-define(CONTRACT_T2_NO_SUPPORTED_OUTPUTS,
+        {131, "no supported T1 outputs available for T2"}).
 
 -define(T2_NOT_BROADCASTED,
         {14, "T2 was not broadcasted. Please verify keys/signatures."}).
@@ -32,3 +34,4 @@
         {18, "T3 was not broadcasted. Please verify signatures."}).
 
 -define(CONTRACT_FINISHED, {19, "contract is finished"}).
+-define(BLOCKCHAIN_PARSING_FAILED, {20, "The bleeding-edge blockchain parsing overheated."}).

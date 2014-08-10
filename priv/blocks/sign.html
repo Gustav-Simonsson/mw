@@ -80,8 +80,8 @@
     <!-- LIBS -->
 
     <!-- BitcoinJS 0.1.3 -->
-    
-    <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/prng4.js"></script> 
+
+    <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/prng4.js"></script>
     <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/rng.js"></script>
     <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/jsbn.js"></script>
     <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/jsbn2.js"></script>
@@ -89,7 +89,7 @@
     <script type="text/javascript" src="../bitcoinjs_0.1.3/jsbn/sec.js"></script>
 
     <script type="text/javascript" src="../bitcoinjs_0.1.3/crypto-js/crypto.js"></script>
-    
+
     <!-- BitcoinJS 1.0.2 -->
 
     <script type="text/javascript" src="../bitcoinjs_1.0.2-min.js"></script>
@@ -99,21 +99,21 @@
     <script type="text/javascript" src="../bs58check.min.js"></script>
 
     <!-- Crypto-JS -->
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/cipher-core.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/core.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/evpkdf.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/mode-cfb.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/enc-base64.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/sha1.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/sha256.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/aes.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/format-hex.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/tripledes.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/pad-nopadding.js"></script>
-    <script src="http://crypto-js.googlecode.com/svn/tags/3.1.2/build/rollups/md5.js"></script>
+    <script src="../crypto-js_3.1.2/cipher-core.js"></script>
+    <script src="../crypto-js_3.1.2/core.js"></script>
+    <script src="../crypto-js_3.1.2/evpkdf.js"></script>
+    <script src="../crypto-js_3.1.2/mode-cfb.js"></script>
+    <script src="../crypto-js_3.1.2/enc-base64.js"></script>
+    <script src="../crypto-js_3.1.2/sha1.js"></script>
+    <script src="../crypto-js_3.1.2/sha256.js"></script>
+    <script src="../crypto-js_3.1.2/aes.js"></script>
+    <script src="../crypto-js_3.1.2/format-hex.js"></script>
+    <script src="../crypto-js_3.1.2/tripledes.js"></script>
+    <script src="../crypto-js_3.1.2/pad-nopadding.js"></script>
+    <script src="../crypto-js_3.1.2/md5.js"></script>
 
     <!-- for crypto, asn1, asn1x509 -->
-    <script src="http://yui.yahooapis.com/2.9.0/build/yahoo/yahoo-min.js"></script>
+    <script src="../yahoo-min.js"></script>
     <!-- for asn1x509(stohex) -->
     <script language="JavaScript" type="text/javascript" src="../jsrsasign/base64x-1.1.min.js"></script>
 
@@ -203,25 +203,14 @@ function sign() {
     console.log("EC giver pub key (base58): " + giverECPubkeyB58Check);
     console.log("EC taker pub key (base58): " + takerECPubkeyB58Check);
 
-    // is it the giver or taker we are serving here?
-    var isGiver = signerECPubkeyB58Check == giverECPubkeyB58Check;
     var isTaker = signerECPubkeyB58Check == takerECPubkeyB58Check;
 
-    // sign for giver
-    if(isGiver) {
-        var t2SighashInput0Buf = Bitcoin.convert.wordArrayToBuffer(CryptoJS.enc.Hex.parse(t2SighashInput0));
-        var signature = signerECKey.sign(t2SighashInput0Buf);
-        // Atomic batteries to power, turbines to speed, engage encoders!
-        var signatureHex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature.toDER()));
-        console.log("signature (giver): " + signatureHex);
-    }
-
     // sign for taker
-    else if(isTaker) {
+    if(isTaker) {
         var t2SighashInput1Buf = Bitcoin.convert.wordArrayToBuffer(CryptoJS.enc.Hex.parse(t2SighashInput1));
         console.log("t2SighashInput1Buf: " + Crypto.util.bytesToHex(t2SighashInput1Buf));
         var signatureRaw = signerECKey.sign(t2SighashInput1Buf);
-        var signature = signatureRaw.toScriptSignature(0x01); // TODO: how to use Transaction.SIGHASH_ALL ?
+        var signature = signatureRaw.toScriptSignature(0x81); // TODO: how to use Transaction.SIGHASH_ALL ?
         var signatureHex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature));
         console.log("signature (taker): " + signatureHex);
     }

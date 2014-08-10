@@ -277,12 +277,14 @@ function sign() {
     // signed with winner's EC privkey
     var t3SighashBuf = Bitcoin.convert.wordArrayToBuffer(CryptoJS.enc.Hex.parse(t3Sighash));
 
-    var signature1 = signerECKey.sign(t3SighashBuf);
-    var signature1Hex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature1.toDER()));
+    var signature1Raw = signerECKey.sign(t3SighashBuf);
+    var signature1 = signature1Raw.toScriptSignature(0x81);
+    var signature1Hex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature1));
 
     // signed with decrypted event EC privkey
-    var signature2 = eventECKey.sign(t3SighashBuf);
-    var signature2Hex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature2.toDER()));
+    var signature2Raw = eventECKey.sign(t3SighashBuf);
+    var signature2 = signature2Raw.toScriptSignature(0x81);
+    var signature2Hex = CryptoJS.enc.Hex.stringify(Bitcoin.convert.bufferToWordArray(signature2));
 
     // Call to Mw
     // ----------

@@ -24,6 +24,7 @@
                 kernel,
                 stdlib,
                 runtime_tools,
+                tools,
                 crypto,
                 lager,
                 proper,

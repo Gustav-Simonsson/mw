@@ -53,7 +53,17 @@ page(Req, State) ->
     {Block} = State,
     Title = erlang:iolist_to_binary("AIX WC 14 - " ++ atom_to_list(Block)),
     %% TODO should be {Req, Middle, State} = html(Req, State) to not loose ReqN
-    Middle = html(Req, State),
+    Middle =
+        try
+            html(Req, State)
+        catch throw:{api_error, {ErrorCode, ErrorMsg}} ->
+                "<br> Error code: " ++ integer_to_list(ErrorCode) ++ " : " ++
+                    ErrorMsg ++ "</br>";
+              E:R ->
+                ?error("Page request handling fucked up: ~p",
+                       [{E,R,erlang:get_stacktrace()}]),
+                "<br> Unknown Error. Something is on fire. Blame Gustav. </br>"
+        end,
     Body  = erlang:iolist_to_binary([
                                      block("head.html"),
                                      Middle,
@@ -203,7 +213,7 @@ html(Req, {cashout2}=_State) ->
             [{contract_id, Id},
              {to_address, ToAddress}])
         catch
-          X:Y -> io_lib:format("no play ~p ~p~n", [X, Y])
+            E:R -> io_lib:format("no play ~p~n", [{E,R, erlang:get_stacktrace()}])
         end
     end;
 
