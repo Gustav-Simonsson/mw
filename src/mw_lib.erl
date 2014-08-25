@@ -110,6 +110,10 @@ datetime_to_iso_timestamp({{Y, Mo, D}, {H, Min, Sec}}) when is_integer(Sec) ->
     IsoStr = io_lib:format(FmtStr, [Y, Mo, D, H, Min, Sec]),
     list_to_binary(IsoStr).
 
+now_unix_timestamp() ->
+    {M, S, _} = os:timestamp(),
+    M*1000000 + S.
+
 bj_http_req(URL) ->
     bj_http_req(URL, [], ?DEFAULT_REQUEST_TIMEOUT).
 bj_http_req(URL, BodyArgs) ->
