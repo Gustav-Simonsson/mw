@@ -48,7 +48,7 @@ insert_wc_bet({_N, Headline, Detail}) ->
     {ok, ContractId} = mw_contract:create_contract(EventId),
     {ok, ECPubKey0} =
         file:read_file(filename:join(code:priv_dir(middle_server),
-                                     "test_keys/giver_keys1/ec_pubkey")),
+                                     "test_keys/giver_keys5_compressed/ec_pubkey")),
     ECPubKey = binary:replace(ECPubKey0, <<"\n">>, <<>>),
     {ok, RSAPubKey} =
         file:read_file(filename:join(code:priv_dir(middle_server),

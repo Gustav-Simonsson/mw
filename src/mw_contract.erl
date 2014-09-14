@@ -30,27 +30,6 @@
 -define(DEFAULT_AES_IV, <<0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0>>).
 -define(BINARY_PREFIX, <<"A1EFFEC100000000">>).
 
--define(BJ_T2_MOCKED, false).
--define(BJ_URL_GET_UNSIGNED_T2,     <<"http://orders3.freshworks2.net:4567/get-unsigned-t2">>).
--define(BJ_URL_SUBMIT_T2_SIGNATURE, <<"http://orders3.freshworks2.net:4567/submit-t2-signature">>).
-
--define(BJ_T3_MOCKED, true).
--define(BJ_URL_GET_UNSIGNED_T3,     <<"http://localhost/get-unsigned-t3">>).
--define(BJ_URL_SUBMIT_T3_SIGNATURES, <<"http:///submit-t3-signatures">>).
--define(BJ_REQUEST_TIMEOUT, 5000).
-
-%%%===========================================================================
-%%% Testnet keys for tests / dev / debug
-%%%===========================================================================
--define(TEST_EC_EVENT_PRIVKEY, <<"16C746A92F7584013A93004BE8A56709C8CFE0B71E8DEA6DEFC6BE0F7D9CB96C">>).
--define(TEST_EC_EVENT_PUBKEY, <<"025A70A221894F315EBC864292D0DB9F7FF0F817C6D489D176E02BAA7FD4FCE320">>).
-
--define(TEST_EC_ORACLE_NO_PRIVKEY, <<"7498560BFC3C501C6386A5EA936B548629E37A3E24C88C4FE29E969C83D8CC57">>).
--define(TEST_EC_ORACLE_NO_PUBKEY, <<"039A7D381E13BA745BCA7BE5456E4076A63CA3B54FCB1B2CF7BD8ACA3DACBD06E3">>).
-
--define(TEST_EC_ORACLE_YES_PRIVKEY, <<"CC74044B7931A452D7039DFE2C9985393843B724DB6251B54DC743E490E7C51C">>).
--define(TEST_EC_ORACLE_YES_PUBKEY, <<"03DC052964F0BCA73CCA109B74CD8F7D2F82C4664AAC142D491DE8B4CC6D244492">>).
-
 %%%===========================================================================
 %%% JSON API handlers (called from cowboy callbacks)
 %%%===========================================================================
@@ -156,7 +135,7 @@ get_contract_t2_state(Id) ->
     EventPubkey = GetInfo("event_pubkey"),
     GiverPubkey = GetInfo("giver_ec_pubkey"),
     TakerPubkey = GetInfo("taker_ec_pubkey"),
-    Value       = <<"20000">>,
+    Value       = <<"70000">>,
 
     %% TODO: only return the strictly needed encrypted
     %% privkeys instead of all of them
@@ -168,27 +147,25 @@ get_contract_t2_state(Id) ->
           contract_event_happened(History, ?STATE_DESC_TAKER_T1)} of
         {true, true, false, false} ->
             %% call Bj to see if t1 outputs are available as t2 inputs
-            ReqRes = bj_req_get_unsigned_t2(GiverPubkey, TakerPubkey,
-                                            EventPubkey, Value),
-            ?info("bj_req_get_unsigned_t2: ~p", [ReqRes]),
-            GetRes = ?GET(ReqRes),
-            case GetRes(<<"error-message">>) of
-                not_found ->
-                    T2SigHashInput0 = GetRes(<<"t2-sig-hash-input0">>), %% giver
-                    T2SigHashInput1 = GetRes(<<"t2-sig-hash-input1">>), %% taker
-                    T2Raw = GetRes(<<"t2-raw">>),
-                    T2Hash = GetRes(<<"t2-hash">>),
+            case mw_btc:get_unsigned_t2(GiverPubkey, TakerPubkey,
+                                        EventPubkey, Value) of
+                {error, _} ->
+                    %% no T1 outputs available; unchanged state
+                    {ok, Info};
+                {T2SigHashInput0, T2SigHashInput1, UnsignedT2} ->
+                    T2SigHashInput0Hex = mw_lib:bin_to_hex(T2SigHashInput0),
+                    T2SigHashInput1Hex = mw_lib:bin_to_hex(T2SigHashInput1),
+                    UnsignedT2Hex = mw_lib:bin_to_hex(UnsignedT2),
                     ok = mw_pg:update_contract_t2(Id,
-                                                  T2SigHashInput0,
-                                                  T2SigHashInput1,
-                                                  T2Raw, T2Hash),
+                                                  T2SigHashInput0Hex,
+                                                  T2SigHashInput1Hex,
+                                                  UnsignedT2Hex,
+                                                  %% TODO: remove hash?
+                                                  <<"">>),
                     ok = mw_pg:insert_contract_event(Id, ?STATE_DESC_GIVER_T1),
                     ok = mw_pg:insert_contract_event(Id, ?STATE_DESC_TAKER_T1),
                     {ok, NewInfo} = get_contract_info(Id),
-                    {ok, NewInfo};
-                _ErrorMsg ->
-                    %% No t2 from Bj: no T1 outputs available; unchanged state
-                    {ok, Info}
+                    {ok, NewInfo}
             end;
         {true, false, false, false} ->
             %% MVP #2 state: only default giver has entered, taker has not
@@ -242,7 +219,7 @@ create_contract(EventId) ->
 clone_contract(Id) ->
     {ok, NewId} = mw_pg:clone_contract(Id),
     ok = mw_pg:insert_contract_event(NewId, ?STATE_DESC_CLONED),
-    [{"new_contract", NewId}].
+    [{"new_contract_id", NewId}].
 
 create_oracle_keys(NoPubkey, NoPrivkey, YesPubkey, YesPrivkey) ->
     %% Validations for EC keys
@@ -329,35 +306,33 @@ do_enter_contract(ContractId,
     ok = mw_pg:insert_contract_event(ContractId, EnteredEvent),
     ok.
 
-do_submit_t2_signature(ContractId, ECPubkey, T2Signature) ->
-    {ok, Info}  = get_contract_info(ContractId),
-    GetInfo     = ?GET(Info),
-    GiverPubkey = GetInfo("giver_ec_pubkey"),
-    TakerPubkey = GetInfo("taker_ec_pubkey"),
-
-    %% validate contract event states? e.g. duplicated signing reqs
-    GiverOrTaker = case ECPubkey of
-                       GiverPubkey -> <<"giver">>;
-                       TakerPubkey -> <<"taker">>;
-                       _           -> ?API_ERROR(?EC_PUBKEY_MISMATCH)
-                   end,
-    T2Raw = GetInfo("t2_raw"),
-    ReqRes =
-        bj_req_submit_t2_signature(ECPubkey, T2Signature, T2Raw, GiverOrTaker),
-    NewT2     = proplists:get_value(<<"t2-raw-partially-signed">>, ReqRes),
-    NewT2Hash = proplists:get_value(<<"new-t2-hash">>, ReqRes),
-    ok = mw_pg:update_contract_t2(ContractId, NewT2, NewT2Hash),
-    SignEvent = case GiverOrTaker of
-                       <<"giver">> -> ?STATE_DESC_GIVER_SIGNED_T2;
-                       <<"taker">> -> ?STATE_DESC_TAKER_SIGNED_T2
-                   end,
-    ok = mw_pg:insert_contract_event(ContractId, SignEvent),
-    case proplists:get_value(<<"t2-broadcasted">>, ReqRes) of
-        true ->
-            ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_T2_BROADCASTED);
-        <<"false">> ->
-            ?API_ERROR(?EC_PUBKEY_MISMATCH)
+do_submit_t2_signature(ContractId, ECPubkey, TakerT2Signature) ->
+    {ok, Info}      = get_contract_info(ContractId),
+    GetInfo         = ?GET(Info),
+    TakerECPubkey   = GetInfo("taker_ec_pubkey"),
+    case ECPubkey =:= TakerECPubkey of
+        false -> ?API_ERROR(?EC_PUBKEY_MISMATCH);
+        true -> continue
     end,
+    GiverECPubkey   = GetInfo("giver_ec_pubkey"),
+    UnsignedT2      = GetInfo("t2_raw"),
+    T2SigHashInput0 = GetInfo("t2_sighash_input_0"),
+    {ok, ECPrivkey0} =
+        file:read_file(filename:join(code:priv_dir(middle_server),
+                                     "test_keys/giver_keys5_compressed/ec_privkey")),
+    GiverECPrivkey = binary:replace(ECPrivkey0, <<"\n">>, <<>>),
+
+    {ok, FinalT2, FinalT2TxHash} =
+        mw_btc:sign_and_submit_t2_signatures(TakerECPubkey,
+                                             GiverECPrivkey,
+                                             GiverECPubkey,
+                                             TakerT2Signature,
+                                             T2SigHashInput0,
+                                             UnsignedT2),
+    ok = mw_pg:update_contract_t2(ContractId, FinalT2, FinalT2TxHash),
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_TAKER_SIGNED_T2),
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_GIVER_SIGNED_T2),
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_T2_BROADCASTED),
     ok.
 
 do_get_t3_for_signing(ContractId, ToAddress) ->
@@ -377,11 +352,13 @@ do_get_t3_for_signing(ContractId, ToAddress) ->
             ?API_ERROR(?NO_EVENT_OUTCOME);
         {true, true, false} ->
             %% T2 broadcasted, event outcome happened, time to grab T3 from Bj.
-            T2Hash = GetInfo("t2_hash"),
-            ReqRes = bj_req_get_unsigned_t3(T2Hash, ToAddress),
-            T3Sighash  = proplists:get_value("t3-sighash", ReqRes),
-            T3Hash  = proplists:get_value("t3-hash", ReqRes),
-            T3Raw = proplists:get_value("t3-raw",  ReqRes),
+            FinalT2Hash = GetInfo("t2_hash"),
+            FinalT2     = GetInfo("t2_raw"),
+            %% TODO: fucking encoding consistency
+            {T3Sighash, UnsignedT3} =
+                mw_btc:get_unsigned_t3(FinalT2,
+                                       mw_lib:hex_to_bin(FinalT2Hash),
+                                       ToAddress),
             %% TODO: here we act as oracle, sending oracle yes/no privkey
             %% depending on event outcome. In future, this could be done by
             %% external oracle(s) and we would instead grab it from e.g. their
@@ -403,29 +380,25 @@ do_get_t3_for_signing(ContractId, ToAddress) ->
              {"taker_enc_rsa_privkey", GetInfo("taker_enc_rsa_privkey")},
              {"oracle_privkey", base64:encode(OPK)}, %% Avoids line breaks in JS
              {"enc_event_privkey", EncEventKey},
-             {"t3-sighash", T3Sighash},
-             {"t3-hash", T3Hash},
-             {"t3-raw", T3Raw}
+             {"t3-sighash", mw_lib:bin_to_hex(T3Sighash)},
+             {"t3-hash", mw_lib:bin_to_hex(T3Sighash)},
+             {"t3-raw", mw_lib:bin_to_hex(UnsignedT3)}
             ];
         {true, true, true} ->
             %% T3 broadcasted: end state of contract.
             ?API_ERROR(?CONTRACT_FINISHED)
     end.
 
-do_submit_t3_signatures(ContractId, T3Raw, T3Signature1, T3Signature2) ->
-    ReqRes        = bj_req_submit_t3_signatures(T3Raw,
-                                                T3Signature1, T3Signature2),
-    NewT3Hash     = proplists:get_value("new-t3-hash", ReqRes),
-    NewT3Raw      = proplists:get_value("new-t3-raw", ReqRes),
-    T3Broadcasted = proplists:get_value("t3-broadcasted", ReqRes),
-    case T3Broadcasted of
-        "true" -> continue;
-        _      -> ?API_ERROR(?T3_NOT_BROADCASTED)
-    end,
+do_submit_t3_signatures(ContractId, T3RawHex, T3Signature1Hex, T3Signature2Hex) ->
+    T3Raw        = mw_lib:hex_to_bin(T3RawHex),
+    T3Signature1 = mw_lib:hex_to_bin(T3Signature1Hex),
+    T3Signature2 = mw_lib:hex_to_bin(T3Signature2Hex),
+    {ok, FinalT3, FinalT3TxHash} =
+        mw_btc:submit_t3_signatures(T3Raw, T3Signature1, T3Signature2),
     ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_SIGNED_T3),
     [
-     {"new-t3-hash", NewT3Hash},
-     {"new-t3-raw", NewT3Raw}
+     {"new-t3-hash", FinalT3TxHash},
+     {"new-t3-raw", FinalT3}
     ].
 
 api_validation(false, APIError) -> ?API_ERROR(APIError);
@@ -444,123 +417,6 @@ contract_event_happened(History, Event) ->
         [_] -> true;
         _   -> true
     end.
-
-bj_req_get_unsigned_t2(GiverPubkey0, TakerPubkey0, EventPubkey0,
-                       Value) ->
-    GiverPubkey = mw_lib:bin_to_hex(mw_lib:dec_b58check(GiverPubkey0)),
-    TakerPubkey = mw_lib:bin_to_hex(mw_lib:dec_b58check(TakerPubkey0)),
-    EventPubkey = mw_lib:bin_to_hex(mw_lib:dec_b58check(EventPubkey0)),
-    QS = cow_qs:qs(
-           [
-            {<<"giver-pubkey">>, GiverPubkey},
-            {<<"taker-pubkey">>, TakerPubkey},
-            {<<"event-pubkey">>, EventPubkey},
-            {<<"value">>, Value}
-           ]),
-    %% TODO: parse response to proplist
-    {ok, Res} =
-        case ?BJ_T2_MOCKED of
-            true ->
-                {ok,
-                 [
-                  {<<"t2-sig-hash-input0">>,
-                   <<"A1EFFEC10000000000000000000000000000000000000000000000000000FF01">>},
-                  {<<"t2-sig-hash-input1">>,
-                   <<"A1EFFEC10000000000000000000000000000000000000000000000000000FF02">>},
-                  {<<"t2-raw">>, <<"A1EFFEC100000000FF03">>},
-                  {<<"t2-hash">>, <<"A1EFFEC100000000FF33">>}
-                 ]
-                 };
-            false ->
-                URL = <<?BJ_URL_GET_UNSIGNED_T2/binary,
-                        $?, QS/binary>>,
-                %% ?info("HURR URL: ~p", [URL]),
-                {ok, {{_StatusCode, _ReasonPhrase}, _Hdrs, ResponseBody}} =
-                    mw_lib:bj_http_req(URL, [], 5000),
-                %% ?info("HURR: ~p", [ResponseBody]),
-                {PL} = jiffy:decode(ResponseBody),
-                {ok, PL}
-        end,
-    ?info("HURR Res: ~p", [Res]),
-    Res.
-
-bj_req_submit_t2_signature(ECPubkey, T2Signature, T2Raw, GiverOrTaker) ->
-    QS = cow_qs:qs(
-           [
-            {<<"t2-signature">>, T2Signature},
-            {<<"t2-raw">>, T2Raw},
-            {<<"pubkey">>, mw_lib:bin_to_hex(mw_lib:dec_b58check(ECPubkey))},
-            {<<"sign-for">>, GiverOrTaker}
-           ]),
-    %% TODO: parse response to proplist
-    {ok, Res} =
-        case ?BJ_T2_MOCKED of
-            true ->
-                {ok,
-                 [
-                  {<<"new-t2-hash">>, <<"A1EFFEC100000000FF04">>},
-                  {<<"t2-raw-partially-signed">>, <<"A1EFFEC100000000FF05">>},
-                  {<<"t2-broadcasted">>, true}
-                 ]
-                 };
-            false ->
-                URL = <<?BJ_URL_SUBMIT_T2_SIGNATURE/binary,
-                        $?, QS/binary>>,
-                ?info("HURR URL: ~p", [URL]),
-                {ok, {{_StatusCode, _ReasonPhrase}, _Hdrs, ResponseBody}} =
-                    mw_lib:bj_http_req(URL, [], 5000),
-                {PL} = jiffy:decode(ResponseBody),
-                {ok, PL}
-        end,
-    Res.
-
-bj_req_get_unsigned_t3(T2Hash, ToAddress) ->
-    QS = cow_qs:qs(
-           [
-            {<<"t2-hash">>, T2Hash},
-            {<<"to-address">>, ToAddress}
-           ]),
-    %% TODO: parse response to proplist
-    {ok, Res} =
-        case ?BJ_T3_MOCKED of
-            true ->
-                {ok,
-                 [
-                  {"t3-sighash",
-                   <<"A1EFFEC10000000000000000000000000000000000000000000000000000FF06">>},
-                  {"t3-hash", "A1EFFEC100000000FF07"},
-                  {"t3-raw", "A1EFFEC100000000FF08"}
-                 ]
-                 };
-            false ->
-                mw_lib:bj_http_req(<<?BJ_URL_GET_UNSIGNED_T3/binary,
-                                     $?, QS/binary>>, [], 5000)
-        end,
-    Res.
-
-bj_req_submit_t3_signatures(T3Raw, T3Signature1, T3Signature2) ->
-    QS = cow_qs:qs(
-           [
-            {<<"t3-raw">>, T3Raw},
-            {<<"t3-signature1">>, T3Signature1},
-            {<<"t3-signature2">>, T3Signature2}
-           ]),
-    %% TODO: parse response to proplist
-    {ok, Res} =
-        case ?BJ_T3_MOCKED of
-            true ->
-                {ok,
-                 [
-                  {"new-t3-hash", "A1EFFEC100000000FF09"},
-                  {"new-t3-raw", "A1EFFEC100000000FF10"},
-                  {"t3-broadcasted", "true"}
-                 ]
-                 };
-            false ->
-                mw_lib:bj_http_req(<<?BJ_URL_SUBMIT_T3_SIGNATURES/binary,
-                                     $?, QS/binary>>, [], 5000)
-        end,
-    Res.
 
 bitcoin_signature_der(<<16#30,
                         _TotalLen,
@@ -609,44 +465,6 @@ hybrid_aes_rsa_enc(Plaintext, RSAPubkey) ->
 %%%===========================================================================
 %%% Dev / Debug / Manual Tests
 %%%===========================================================================
-%% mw_contract:manual_test_1().
-manual_test_1() ->
-    {ok, _Id} =
-        create_oracle_keys(
-          rsa_key_from_file("test_keys/oracle_keys1/oracle_no_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys1/oracle_no_privkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys1/oracle_yes_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys1/oracle_yes_privkey.pem")),
-
-    {ok, _Id2} =
-        create_oracle_keys(
-          rsa_key_from_file("test_keys/oracle_keys2/oracle_no_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys2/oracle_no_privkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys2/oracle_yes_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys2/oracle_yes_privkey.pem")),
-
-    {ok, _Id3} =
-        create_oracle_keys(
-          rsa_key_from_file("test_keys/oracle_keys3/oracle_no_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys3/oracle_no_privkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys3/oracle_yes_pubkey.pem"),
-          rsa_key_from_file("test_keys/oracle_keys3/oracle_yes_privkey.pem")),
-
-    {ok, _} = create_event(1, "Brazil beats Croatia", "More foo info", 1,
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PRIVKEY),
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PUBKEY)),
-
-    {ok, _} = create_event(1, "Croatia beats Brazil", "More foo info", 2,
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PRIVKEY),
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PUBKEY)),
-
-    {ok, _} = create_event(1, "Match is invaded by aliens", "More foo info", 3,
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PRIVKEY),
-                           mw_lib:hex_to_bin(?TEST_EC_EVENT_PUBKEY)),
-
-
-    ok.
-
 manual_test_2() ->
     {ok, _} = create_contract(1),
     ok.

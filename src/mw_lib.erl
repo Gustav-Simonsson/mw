@@ -35,39 +35,46 @@ bin_to_hex(B) when is_binary(B) ->
                                 2 -> S
                             end))/bytes>> || <<I>> <= B>>.
 
-dec_b58check(S) when is_list(S)   -> dec_b58check(binary:list_to_bin(S));
-dec_b58check(B58) when is_binary(B58) ->
-    {Zeroes, Rest} = split_leading_ones_to_zeroes(B58, <<>>),
-    PayloadLen = byte_size(Bin = dec_b58(Rest)) - 4,
-    <<Payload:PayloadLen/bytes, Hash:4/bytes>> = Bin,
-    <<ExpectedHash:4/bytes, _/binary>> =
-        double_sha256(<<Zeroes/binary, Payload/binary>>),
-    [throw(base58_checksum_validation_failed) || not (ExpectedHash =:= Hash)],
-    <<Zeroes/binary, Payload/binary>>.
-
 %% We assume application/version byte was already concatenated with payload
 enc_b58check(S) when is_list(S) ->
     enc_b58check(binary:list_to_bin(S));
 enc_b58check(B) when is_binary(B) ->
     <<Hash:4/bytes, _/binary>> = double_sha256(B),
-    B64 = enc_b58(<<B/binary, Hash/binary>>),
-    <<(leading_zeroes_as_ones(B))/binary, B64/binary>>.
+    enc_b58(<<B/binary, Hash/binary>>).
+
+dec_b58check(S) when is_list(S)   -> dec_b58check(binary:list_to_bin(S));
+dec_b58check(B58) when is_binary(B58) ->
+    PayloadLen = byte_size(Bin = dec_b58(B58)) - 4,
+    <<Payload:PayloadLen/bytes, Hash:4/bytes>> = Bin,
+    <<ExpectedHash:4/bytes, _/binary>> = double_sha256(Payload),
+    [throw(base58_checksum_validation_failed) || not (ExpectedHash =:= Hash)],
+    Payload.
 
 leading_zeroes_as_ones(<<0, B/binary>>) ->
     <<"1", (leading_zeroes_as_ones(B))/binary>>;
 leading_zeroes_as_ones(_B) -> <<>>.
 
+remove_leading_zeroes(<<0, B/binary>>) -> remove_leading_zeroes(B);
+remove_leading_zeroes(B) -> B.
+
 split_leading_ones_to_zeroes(<<"1", B/binary>>, Acc) ->
     split_leading_ones_to_zeroes(B, <<0, Acc/binary>>);
 split_leading_ones_to_zeroes(B, Acc) -> {Acc, B}.
-
 
 double_sha256(B) when is_binary(B) ->
     crypto:hash(sha256, crypto:hash(sha256, B)).
 
 enc_b58(S) when is_list(S)   -> enc_b58(binary:list_to_bin(S));
 enc_b58(<<>>)                -> <<>>;
-enc_b58(B) when is_binary(B) -> enc_b58(binary:decode_unsigned(B), <<>>).
+enc_b58(B) when is_binary(B) ->
+    case Rest = remove_leading_zeroes(B) of
+        <<>> ->
+            <<(leading_zeroes_as_ones(B))/binary>>;
+        _ ->
+            Enc = enc_b58(binary:decode_unsigned(Rest), <<>>),
+            <<(leading_zeroes_as_ones(B))/binary, Enc/binary>>
+    end.
+
 enc_b58(Num, Acc) when Num < ?B58_BASE ->
     <<(?ALPHABET_CODE(Num)), Acc/binary>>;
 enc_b58(Num, Acc) ->
@@ -77,7 +84,12 @@ dec_b58(S) when is_list(S) ->
     dec_b58(binary:list_to_bin(S));
 dec_b58(<<>>) -> <<>>;
 dec_b58(B) when is_binary(B) ->
-    dec_b58(bin_rev(B), 1, 0).
+    case split_leading_ones_to_zeroes(B, <<>>) of
+        {Zeroes, <<>>} ->
+            <<Zeroes/binary>>;
+        {Zeroes, Rest} ->
+            <<Zeroes/binary, (dec_b58(rev_bin(Rest), 1, 0))/binary>>
+    end.
 
 dec_b58(<<>>, _Pow, Num) ->
     binary:encode_unsigned(Num);
@@ -89,10 +101,10 @@ dec_b58(<<C, Rest/binary>>, Pow, Num) ->
             dec_b58(Rest, Pow * ?B58_BASE, Num + (Pow * (Pos - 1)))
     end.
 
-bin_rev(Bin) -> bin_rev(Bin, <<>>).
-bin_rev(<<>>, Acc) -> Acc;
-bin_rev(<<H:1/binary, Rest/binary>>, Acc) -> %% binary concatenation is fastest?
-    bin_rev(Rest, <<H/binary, Acc/binary>>).
+rev_bin(Bin) -> rev_bin(Bin, <<>>).
+rev_bin(<<>>, Acc) -> Acc;
+rev_bin(<<H:1/binary, Rest/binary>>, Acc) -> %% binary concatenation is fastest?
+    rev_bin(Rest, <<H/binary, Acc/binary>>).
 
 pos_in_list(E, L) when is_list(L) ->
     pos_in_list_aux(E, L, 1).
@@ -109,6 +121,14 @@ datetime_to_iso_timestamp({{Y, Mo, D}, {H, Min, Sec}}) when is_integer(Sec) ->
     FmtStr = "~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
     IsoStr = io_lib:format(FmtStr, [Y, Mo, D, H, Min, Sec]),
     list_to_binary(IsoStr).
+
+now_unix_timestamp() ->
+    {M, S, _} = os:timestamp(),
+    M*1000000 + S.
+
+unix_ts_to_datetime(TS) when is_integer(TS) ->
+    Start = calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}),
+    calendar:gregorian_seconds_to_datetime(Start + TS).
 
 bj_http_req(URL) ->
     bj_http_req(URL, [], ?DEFAULT_REQUEST_TIMEOUT).
@@ -149,8 +169,9 @@ cowboy_req_enable_cors(Req) ->
 proper() ->
     ProperOpts =
         [{to_file, user},
-         {numtests, 1000}],
+         {numtests, 10000}],
     true = proper:quickcheck(prop_base58(), ProperOpts),
+    true = proper:quickcheck(prop_base58check(), ProperOpts),
     true = proper:quickcheck(prop_hex(), ProperOpts),
     ok.
 
@@ -158,7 +179,13 @@ prop_base58() ->
     ?FORALL(Bin,
             binary(),
             begin
-                Bin =:= mw_lib:dec_b58(mw_lib:enc_b58(Bin)),
+                Bin =:= mw_lib:dec_b58(mw_lib:enc_b58(Bin))
+            end).
+
+prop_base58check() ->
+    ?FORALL(Bin,
+            binary(),
+            begin
                 Bin =:= mw_lib:dec_b58check(mw_lib:enc_b58check(Bin))
             end).
 
