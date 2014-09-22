@@ -30,7 +30,7 @@
 
 -define(ENABLE_PROFILING, true).
 -define(BITCOIND_DIR, "/home/gustav/.bitcoin/").
--define(BLOCK_TIMESTAMP_PARSE_LIMIT, mw_lib:now_unix_timestamp() - (86400 * 5)).
+-define(BLOCK_TIMESTAMP_PARSE_LIMIT, mw_lib:now_unix_timestamp() - (86400 * 3)).
 -define(BITCOIND_URL, "http://127.0.0.1:8332").
 -define(BITCOIND_JSON_RPC_USER, "generated_by_armory").
 -define(BITCOIND_JSON_RPC_PASS, "FAh1Nf2K1TddAus5VfMWGwHSrd7usPqqjBdVzsjtUWyQ").
@@ -224,6 +224,17 @@ submit_t3_signatures(UnsignedT3, T3Signature1, T3Signature2) ->
     ?info("FinalT3: ~p", [FinalT3]),
     {ok, FinalT3TxHash} = send_raw_tx_to_bitcoind(FinalT3),
     {ok, FinalT3, FinalT3TxHash}.
+
+bitcoin_signature_der(<<16#30,
+                        _TotalLen,
+                        16#02,
+                        RLen,
+                        _R:RLen/bytes,
+                        16#02,
+                        SLen,
+                        _S:SLen/bytes,
+                        _HashType>>) -> true;
+bitcoin_signature_der(_Bin) -> false.
 
 %%%===========================================================================
 %%% Internal functions

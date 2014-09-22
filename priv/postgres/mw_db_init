@@ -84,6 +84,7 @@ t2_raw bytea,
 t2_hash bytea,
 t2_sighash_input_0 bytea,
 t2_sighash_input_1 bytea,
+t3_raw bytea,
 PRIMARY KEY (id)
 );
 

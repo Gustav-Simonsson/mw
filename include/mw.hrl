@@ -1,0 +1,2 @@
+-define(DEFAULT_AES_IV, <<0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0>>).
+-define(BINARY_PREFIX, <<"A1EFFEC100000000">>).

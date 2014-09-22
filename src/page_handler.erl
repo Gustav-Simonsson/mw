@@ -109,7 +109,7 @@ html(_Req, {flow}=State) ->
 
 %% first contract step, create keys, support T1; inner html
 html(Req, {prep}=_State) ->
-    {Id, _} = cowboy_req:binding(id, Req, none),
+    Id = cowboy_req:binding(id, Req, none),
     case Id of
       none ->
         "ID error";
@@ -146,7 +146,7 @@ html(_Req, {pend}=State) ->
 
 %% wait for T1 arriving, or offer to sign T2
 html(Req, {sign}=_State) ->
-    {Id, _} = cowboy_req:binding(id, Req, none),
+    Id = cowboy_req:binding(id, Req, none),
     case Id of
       none ->
         "ID error";
@@ -174,7 +174,7 @@ html(_Req, {followup}=State) ->
     block(Block);
 
 html(Req, {status}=_State) ->
-    {Id, _} = cowboy_req:binding(id, Req, none),
+    Id = cowboy_req:binding(id, Req, none),
     case Id of
       none ->
         "Enter ID ... ";

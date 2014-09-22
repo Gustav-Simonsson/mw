@@ -73,7 +73,8 @@ select_contract_info(Id) ->
         "       c.event_key_enc_with_oracle_yes_and_giver_keys, "
         "       c.event_key_enc_with_oracle_no_and_taker_keys, "
         "       c.t2_sighash_input_0, c.t2_sighash_input_1, "
-        "       c.t2_hash, c.t2_raw "
+        "       c.t2_hash, c.t2_raw, "
+        "       c.t3_raw "
         "FROM events e, contracts c "
         "WHERE e.id = c.event_id and c.id = $1;",
     {ok, [[{<<"match_no">>, MatchNo},
@@ -92,7 +93,8 @@ select_contract_info(Id) ->
            {<<"t2_sighash_input_0">>, T2SigHashInput0},
            {<<"t2_sighash_input_1">>, T2SigHashInput1},
            {<<"t2_hash">>, T2Hash},
-           {<<"t2_raw">>, T2Raw}
+           {<<"t2_raw">>, T2Raw},
+           {<<"t3_raw">>, T3Raw}
           ]]} =
         mw_pg_lib:parse_select_result(
           mw_pg_lib:equery(Statement2,
@@ -109,7 +111,7 @@ select_contract_info(Id) ->
      GiverEncECPrivkey, TakerEncECPrivkey,
      GiverEncRSAPrivkey, TakerEncRSAPrivkey,
      EncEventKeyYes, EncEventKeyNo,
-     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash,
+     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw,
      FormatedEvents}.
 
 select_contract_ec_pubkeys(Id) ->
@@ -236,19 +238,13 @@ update_contract_t2(Id, T2Raw, T2Hash) ->
     ok.
 
 %% Add t3 after calling Bj for /get-unsigned-t3/
-update_contract_t3(Id, GiverOrTaker, T3Raw, T3Hash) ->
-    {T3RawColumn, T3HashColumn} =
-        case GiverOrTaker of
-            giver -> {"t3_to_giver_raw", "t3_to_giver_sighash"};
-            taker -> {"t3_to_taker_raw", "t3_to_taker_sighash"}
-        end,
+update_contract_t3(Id, T3Raw) ->
     Statement =
-        "UPDATE contracts SET " ++
-        T3RawColumn  ++ " = " ++ "$1, " ++
-        T3HashColumn ++ " = " ++ "$2 "  ++
-        "WHERE id = $3;",
+        "UPDATE contracts SET "
+        "t3_raw = $1 "
+        "WHERE id = $2;",
     Params = lists:map(fun mw_pg_lib:ensure_epgsql_type/1,
-                       [T3Raw, T3Hash, Id]),
+                       [T3Raw, Id]),
     {ok, _} = mw_pg_lib:parse_insert_result(
                 mw_pg_lib:equery(Statement, Params)),
     ok.

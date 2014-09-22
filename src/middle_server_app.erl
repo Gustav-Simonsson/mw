@@ -71,6 +71,32 @@ start(_Type, _Args) ->
                                 ]),
 
     %% -------------------------------------------------------------------
+    %% New API for android client
+    %% -------------------------------------------------------------------
+    %% define json hosts, pathes, their patterns and handlers
+    Routes =
+        [
+         {'_',
+          [
+           {"/get-contract-state/:contractid", api_handler2, 'get-contract-state'},
+           {"/clone-contract/:contractid", api_handler2, 'clone-contract'},
+           {"/enter-contract/:contractid", api_handler2, 'enter-contract'},
+           {"/submit-t2-signature/:contractid", api_handler2, 'submit-t2-signature'},
+           {"/get-t3-for-signing/:contractid", api_handler2, 'get-t3-for-signing'},
+           {"/submit-t3-signatures/:contractid", api_handler2, 'submit-t3-signatures'}
+          ]
+         }
+        ],
+    JSONDispatch2 = cowboy_router:compile(Routes),
+
+    %% start cowboy json server
+    {ok, _} = cowboy:start_http(json2, 100, [{port, 8082}],
+                                [
+                                 {env, [{dispatch, JSONDispatch2}]},
+                                 {middlewares, [cowboy_router, cowboy_handler]}
+                                ]),
+
+    %% -------------------------------------------------------------------
     %% Web Site
     %% -------------------------------------------------------------------
     %% define http hosts, pathes, their patterns and handlers

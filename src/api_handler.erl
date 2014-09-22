@@ -6,7 +6,7 @@
 %%% Copyright   : AI Effect Group, Berlin                                   %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
 %%% License     : MIT                                                       %%%
-%%% Created     : 29 May 2014                                               %%%
+%%% Creaxted     : 29 May 2014                                               %%%
 %%% Changed     : 22 Jun 2014                                               %%%
 %%%-------------------------------------------------------------------------%%%
 -module(api_handler).
@@ -77,7 +77,7 @@ response(Req, 'enter-contract'=State) ->
     HandleFun =
         fun() ->
                 ?info("Req: ~p State:~p", [Req, State]),
-                {JSON, _} = cowboy_req:binding('json', Req),
+                JSON = cowboy_req:binding('json', Req),
                 ?info("JSON: ~p", [JSON]),
                 {[{<<"contract_id">>, ContractId0},
                   {<<"ec_pubkey">>, ECPubKey},
@@ -106,7 +106,7 @@ response(Req, 'clone-contract'=State) ->
     HandleFun =
         fun() ->
                 ?info("Req: ~p State:~p", [Req, State]),
-                {JSON, _} = cowboy_req:binding('json', Req),
+                JSON = cowboy_req:binding('json', Req),
                 {[{<<"contract_id">>, ContractId0}]} = jiffy:decode(JSON),
                 ContractId = erlang:list_to_integer(
                                binary:bin_to_list(ContractId0)),
@@ -122,7 +122,7 @@ response(Req, 'submit-t2-signature'=State) ->
     HandleFun =
         fun() ->
                 ?info("Req: ~p State:~p", [Req, State]),
-                {JSON, _} = cowboy_req:binding('json', Req),
+                JSON = cowboy_req:binding('json', Req),
                 {[{<<"contract_id">>, ContractId0},
                   {<<"ec_pubkey">>, ECPubKey},
                   {<<"t2_signature">>, T2Signature}]} = jiffy:decode(JSON),
@@ -143,7 +143,7 @@ response(Req, 'get-t3-for-signing'=State) ->
                 ?info("Req: ~p State:~p", [Req, State]),
                 %% {ContractId0, _} = cowboy_req:qs_val(<<"contract_id">>, Req),
                 %% {ToAddress, _} = cowboy_req:qs_val(<<"to_address">>, Req),
-                {JSON, _} = cowboy_req:binding('json', Req),
+                JSON = cowboy_req:binding('json', Req),
                 {[{<<"contract_id">>, ContractId0},
                   {<<"to_address">>, ToAddress}]} = jiffy:decode(JSON),
                 ContractId = erlang:list_to_integer(
@@ -161,7 +161,7 @@ response(Req, 'submit-t3-signatures'=State) ->
     HandleFun =
         fun() ->
                 ?info("Req: ~p State:~p", [Req, State]),
-                {JSON, _} = cowboy_req:binding('json', Req),
+                JSON = cowboy_req:binding('json', Req),
                 ?info("HURR JSON: ~p", [JSON]),
                 {[{<<"contract_id">>, ContractId0},
                   {<<"t3_raw">>, T3Raw},

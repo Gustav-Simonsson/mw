@@ -19,6 +19,8 @@ Status
 
 This is the 'Mw' stack of Cowboy, PostgreSQL and BitcoinJS. It has a minmal cowboy setup serving static pages in `priv/` and assembling dynamic pages from flat data structures and templates in `priv/blocks/`. PostgreSQL is used to persist contract state. The server can be started up without PostgreSQL running, for quick tests. BitcoinJS is currently sometimes used with stable 1.0.2 and at other times with the old de-facto standard 0.1.3. There are 'blocks' for all pages that are part of the usage flow.
 
+There is also a new android API, documented here:
+
 Requirements
 ------------
 
