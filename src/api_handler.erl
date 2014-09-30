@@ -57,22 +57,6 @@ handle_post(Req, State) ->
 %% ----------------------------------------------------------------------------
 %% Responses
 %% ----------------------------------------------------------------------------
-%% The second parameter here is the third in the dispatch tuples of the hosts.
-response(Req, hello=State) ->
-    %% io:format("Req: ~p~n~n State:~p~n~n", [Req, State]),
-    JSON = <<"{ \"hello\" : \"Hello, world!\" }">>,
-    {JSON, Req, State};
-
-response(Req, sample=State) ->
-    io:format("Req: ~p~n~n State:~p~n~n", [Req, State]),
-    JSON = jiffy:encode([{sample, sample1()}]),
-    {JSON, Req, State};
-
-response(Req, 'bet-list'=State) ->
-    io:format("Req: ~p~n~n State:~p~n~n", [Req, State]),
-    JSON = jiffy:encode([{'bet-list', sample2()}]),
-    {JSON, Req, State};
-
 response(Req, 'enter-contract'=State) ->
     HandleFun =
         fun() ->
@@ -202,51 +186,3 @@ handle_response(HandleFun) ->
                             <<"Something is on fire. Don't panic. "
                               "Blame Gustav.">>}]})
     end.
-
-%% ---------------------------------------------------------------------------
-%% Sample data to be injected into the HTML
-%% -----------------------------------------------------------------------
-sample1() ->
-    [[{ a, 1 }, { b, <<"b">> }, { c, c }]].
-
-sample2() ->
-    [
-     [{bet, "Germany beat Brazil"},
-      {yes_amount, "2"},
-      {no_amount, "3"},
-      {yes_bidder, "Hans Langen"},
-      {yes_pubkey, "#1dkuebmicbfviwkjnbepivavriongerjvdfkjn"},
-      {no_bidder, "YOU?"},
-      {no_pubkey, "--"},
-      {smallprint, "small print"}],
-     [{bet, "Germany beat Brazil"},
-      {yes_amount, "2"},
-      {no_amount, "3"},
-      {yes_bidder, "Hans Langen"},
-      {yes_pubkey, "#1dkuebmicbfviwkjnbepivavriongerjvdfkjn"},
-      {no_bidder, "YOU?"},
-      {no_pubkey, "--"},
-      {smallprint, "small print"}]
-    ].
-
-%% ---------------------------------------------------------------------------
-%% Mini JSON
-%% ---------------------------------------------------------------------------
-%% Use http://jsonlint.com to verify output.
-json([{_,_}|_]=L) ->
-    "{" ++ jsonL(L) ++ "}";
-
-json([H|_]=L) when not is_integer(H) ->
-    "[" ++ jsonL(L) ++ "]";
-
-json({Key, Value}) ->
-    json(Key) ++ ":" ++ json(Value);
-
-json(Term) when is_integer(Term) ->
-    io_lib:format("~w", [Term]);
-
-json(Term) ->
-    io_lib:format("\"~s\"", [Term]).
-
-jsonL(L) ->
-    lists:droplast(lists:flatten([ json(E) ++ "," || E <- L ])).

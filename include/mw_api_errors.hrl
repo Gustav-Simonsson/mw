@@ -35,4 +35,3 @@
 
 -define(CONTRACT_FINISHED, {19, <<"contract is finished">>}).
 -define(BLOCKCHAIN_PARSING_FAILED, {20, <<"The bleeding-edge blockchain parsing overheated.">>}).
-

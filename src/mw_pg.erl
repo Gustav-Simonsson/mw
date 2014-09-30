@@ -44,9 +44,8 @@ insert_contract_event(ContractId, Event) ->
 
 select_contract_infos() ->
     Statement =
-        "SELECT e.id as event_id, e.match_no, e.headline, e.description, e.outcome, "
-        "       e.event_pubkey, c.giver_ec_pubkey, c.taker_ec_pubkey, "
-        "       c.t2_sighash_input_0, c.t2_sighash_input_1, t2_raw "
+        "SELECT c.id, c.giver_ec_pubkey, c.taker_ec_pubkey, "
+        "       e.event_pubkey, e.headline, e.outcome     "
         "FROM events e
          JOIN contracts c ON e.id = c.event_id;",
         mw_pg_lib:parse_select_result(
@@ -64,7 +63,7 @@ select_contract_info(Id) ->
           mw_pg_lib:equery(Statement,
                            [mw_pg_lib:ensure_epgsql_type(Id)])),
     Statement2 =
-        "SELECT e.match_no, e.headline, e.description, e.outcome, "
+        "SELECT e.headline, e.outcome, "
         "       e.event_pubkey, c.giver_ec_pubkey, c.taker_ec_pubkey, "
         "       c.giver_enc_ec_privkey, "
         "       c.taker_enc_ec_privkey, "
@@ -74,12 +73,10 @@ select_contract_info(Id) ->
         "       c.event_key_enc_with_oracle_no_and_taker_keys, "
         "       c.t2_sighash_input_0, c.t2_sighash_input_1, "
         "       c.t2_hash, c.t2_raw, "
-        "       c.t3_raw "
+        "       c.t3_hash, c.t3_raw "
         "FROM events e, contracts c "
         "WHERE e.id = c.event_id and c.id = $1;",
-    {ok, [[{<<"match_no">>, MatchNo},
-           {<<"headline">>, Headline},
-           {<<"description">>, Desc},
+    {ok, [[{<<"headline">>, Headline},
            {<<"outcome">>, Outcome},
            {<<"event_pubkey">>, EventPubKey},
            {<<"giver_ec_pubkey">>, GiverECPubKey},
@@ -94,6 +91,7 @@ select_contract_info(Id) ->
            {<<"t2_sighash_input_1">>, T2SigHashInput1},
            {<<"t2_hash">>, T2Hash},
            {<<"t2_raw">>, T2Raw},
+           {<<"t3_hash">>, T3Hash},
            {<<"t3_raw">>, T3Raw}
           ]]} =
         mw_pg_lib:parse_select_result(
@@ -106,12 +104,12 @@ select_contract_info(Id) ->
             {mw_lib:datetime_to_iso_timestamp(DT), D}
         end,
     FormatedEvents = lists:map(FormatEvent, Events),
-    {ok, MatchNo, Headline, Desc, Outcome,
+    {ok, Headline, Outcome,
      EventPubKey, GiverECPubKey, TakerECPubKey,
      GiverEncECPrivkey, TakerEncECPrivkey,
      GiverEncRSAPrivkey, TakerEncRSAPrivkey,
      EncEventKeyYes, EncEventKeyNo,
-     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw,
+     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw, T3Hash,
      FormatedEvents}.
 
 select_contract_ec_pubkeys(Id) ->
@@ -237,14 +235,15 @@ update_contract_t2(Id, T2Raw, T2Hash) ->
                 mw_pg_lib:equery(Statement, Params)),
     ok.
 
-%% Add t3 after calling Bj for /get-unsigned-t3/
-update_contract_t3(Id, T3Raw) ->
+%% Add final t3 and it's tx hash after t3 was successfully broadcasted
+update_contract_t3(Id, T3Raw, T3Hash) ->
     Statement =
         "UPDATE contracts SET "
-        "t3_raw = $1 "
-        "WHERE id = $2;",
+        "t3_raw = $1, "
+        "t3_hash = $2 "
+        "WHERE id = $3;",
     Params = lists:map(fun mw_pg_lib:ensure_epgsql_type/1,
-                       [T3Raw, Id]),
+                       [T3Raw, T3Hash, Id]),
     {ok, _} = mw_pg_lib:parse_insert_result(
                 mw_pg_lib:equery(Statement, Params)),
     ok.
@@ -312,18 +311,18 @@ select_enc_event_privkey(ContractId, YesOrNo) ->
     {ok, EncPrivKey}.
 
 %% New event; some fields are not available yet
-insert_event(MatchNum, Headline, Desc, OracleKeysId, EventPubKey,
+insert_event(Headline, OracleKeysId, EventPubKey,
              EventPrivKeyEnvWithOracleNoKey, EventPrivKeyEnvWithOracleYesKey) ->
     Statement =
         "INSERT INTO events "
-        "(match_no, headline, description, "
+        "(headline, "
         "oracle_keys_id, event_pubkey, "
         "event_privkey_enc_with_oracle_no_pubkey, "
         "event_privkey_enc_with_oracle_yes_pubkey) "
-        "VALUES ( $1, $2, $3, $4, $5, $6, $7 ) "
+        "VALUES ( $1, $2, $3, $4, $5) "
         "RETURNING id;",
     Params = lists:map(fun mw_pg_lib:ensure_epgsql_type/1,
-                       [MatchNum, Headline, Desc, OracleKeysId, EventPubKey,
+                       [Headline, OracleKeysId, EventPubKey,
                         EventPrivKeyEnvWithOracleNoKey,
                         EventPrivKeyEnvWithOracleYesKey]),
     {ok, [{<<"id">>, EventId}]} =

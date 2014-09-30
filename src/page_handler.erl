@@ -47,18 +47,17 @@ content_types_provided(Req, State) ->
 %% ----------------------------------------------------------------------------
 %% Page Creation
 %% ----------------------------------------------------------------------------
-
 %% assemble a page, generically: title, meta, header, footer
 page(Req, State) ->
     {Block} = State,
-    Title = erlang:iolist_to_binary("AIX WC 14 - " ++ atom_to_list(Block)),
+    Title = erlang:iolist_to_binary("Betwarp " ++ atom_to_list(Block)),
     %% TODO should be {Req, Middle, State} = html(Req, State) to not loose ReqN
     Middle =
         try
             html(Req, State)
         catch throw:{api_error, {ErrorCode, ErrorMsg}} ->
                 "<br> Error code: " ++ integer_to_list(ErrorCode) ++ " : " ++
-                    ErrorMsg ++ "</br>";
+                    binary:bin_to_list(ErrorMsg) ++ "</br>";
               E:R ->
                 ?error("Page request handling fucked up: ~p",
                        [{E,R,erlang:get_stacktrace()}]),
@@ -77,35 +76,12 @@ page(Req, State) ->
     %% ?info("Page outgoing Req: ~p", [Req2]),
     {HTML, Req2, somepath}. %% TODO somepath?
 
-%% home page inner html
-html(_Req, {index}=_State) ->
-    Bin = block(index),
-    {ok, Data} = mw_pg:select_contract_infos(),
-    merge(Bin, [{betlist, list_to_binary(bets_html(Data))}]);
-
 %% bet list inner html
 html(_Req, {bets}=_State) ->
     Bin = block(bets),
     {ok, Data} = mw_pg:select_contract_infos(),
-    merge(Bin, [{betlist, bets_html(Data)}]);
-
-%% about page inner html
-html(_Req, {about}=State) ->
-    {Block} = State,
-    block(Block);
-
-%% intro page inner html
-html(_Req, {intro}=State) ->
-    {Block} = State,
-    block(Block);
-
-html(_Req, {details}=State) ->
-    {Block} = State,
-    block(Block);
-
-html(_Req, {flow}=State) ->
-    {Block} = State,
-    block(Block);
+    Merged = merge(Bin, [{betlist, bets_html(Data)}]),
+    Merged;
 
 %% first contract step, create keys, support T1; inner html
 html(Req, {prep}=_State) ->
@@ -136,8 +112,8 @@ html(Req, {prep}=_State) ->
                   [{headline, Headline},
                    {status, HistoryHTML},
                    {contract_id, Id},
-                   {dump, prop_to_html(Props)}
-                  ] ++ Props)
+                   {server_host, ServerHost}
+                  ])
     end;
 
 html(_Req, {pend}=State) ->
@@ -152,9 +128,15 @@ html(Req, {sign}=_State) ->
         "ID error";
       _ ->
             IdN = list_to_integer(binary_to_list(Id)),
-            {ok, Props0} = mw_contract:get_contract_t2_state(IdN),
+            {ok, Props} = mw_contract:get_contract_t2_state(IdN),
             {ok, ServerHost} = application:get_env(mw, server_host),
-            Props = Props0 ++ [{server_host, ServerHost}],
+            T2Raw = proplists:get_value("t2_raw", Props),
+            T2SigHashInput0 = proplists:get_value("t2_sighash_input_0", Props),
+            T2SigHashInput1 = proplists:get_value("t2_sighash_input_1", Props),
+            GiverPubkey = proplists:get_value("giver_ec_pubkey", Props),
+            TakerPubkey = proplists:get_value("taker_ec_pubkey", Props),
+            TakerEncPrivkey =
+                proplists:get_value("taker_enc_ec_privkey", Props),
             History = proplists:get_value("history", Props),
             case {mw_contract:contract_event_happened(
                     History, ?STATE_DESC_GIVER_T1),
@@ -163,15 +145,20 @@ html(Req, {sign}=_State) ->
                 {true, true} ->
                     %% TODO: only send out the strictly needed encrypted
                     %% privkeys instead of all of them
-                    merge(block(sign), [{contract_id, Id}] ++ Props);
+                    merge(block(sign),
+                          [{contract_id, Id},
+                           {server_host, ServerHost},
+                           {t2_raw, T2Raw},
+                           {t2_sighash_input_0, T2SigHashInput0},
+                           {t2_sighash_input_1, T2SigHashInput1},
+                           {giver_ec_pubkey, GiverPubkey},
+                           {taker_ec_pubkey, TakerPubkey},
+                           {taker_enc_ec_privkey, TakerEncPrivkey}
+                          ]);
                 _ ->
                     merge(block(wait), [{contract_id, Id}])
             end
     end;
-
-html(_Req, {followup}=State) ->
-    {Block} = State,
-    block(Block);
 
 html(Req, {status}=_State) ->
     Id = cowboy_req:binding(id, Req, none),
@@ -181,71 +168,66 @@ html(Req, {status}=_State) ->
       _ ->
         case mw_contract:get_contract_info(binary_to_integer(Id)) of
           {ok, Props} ->
-            Headline = proplists:get_value("headline", Props, <<"?">>),
+            Headline = proplists:get_value("headline", Props),
+            Outcome = proplists:get_value("outcome", Props),
+            EventPubkey = proplists:get_value("event_pubkey", Props),
+            GiverPubkey = proplists:get_value("giver_ec_pubkey", Props),
+            TakerPubkey = proplists:get_value("taker_ec_pubkey", Props),
+            TakerAddr   = case TakerPubkey of
+                              null -> null;
+                              _ -> mw_btc:ecpubkey_to_addr(
+                                     mw_lib:dec_b58check(TakerPubkey))
+                          end,
+            T2Hash = proplists:get_value("t2_hash", Props),
+            T3Hash = proplists:get_value("t3_hash", Props),
             History = events_to_html(proplists:get_value("history", Props)),
             merge(block(status),
-              [{headline, Headline},
+              [{contract_id, Id},
+               {headline, Headline},
                {status, History},
-               {dump, prop_to_html(Props)}
+               {outcome, Outcome},
+               {event_pubkey, EventPubkey},
+               {giver_pubkey, GiverPubkey},
+               {taker_pubkey, TakerPubkey},
+               {taker_address, TakerAddr},
+               {t2_hash, T2Hash},
+               {t3_hash, T2Hash}
              ])
         end
     end;
 
 %% enter to-address for payout
-html(_Req, {cashout}=_State) ->
-    block(cashout);
+html(Req, {cashout}=_State) ->
+    Id = cowboy_req:binding(id, Req, none),
+    merge(block(cashout), [{contract_id, Id}]);
 
 %% enter keys for payout
 html(Req, {cashout2}=_State) ->
-    {Id0, Req2} = cowboy_req:qs_val(<<"contract_id">>, Req),
-    case Id0 of
-      none ->
-        "ID error";
-      _ ->
-        try
-          Id = binary_to_integer(Id0),
-          {ToAddress, _Req3} = cowboy_req:qs_val(<<"to_address">>, Req2),
-          Props0 = mw_contract:get_t3_for_signing(Id, ToAddress),
-          {ok, ServerHost} = application:get_env(mw, server_host),
-          Props = Props0 ++ [{server_host, ServerHost}],
-          merge(block(cashout2),
-            Props ++
-            [{contract_id, Id},
-             {to_address, ToAddress}])
-        catch
-            E:R -> io_lib:format("no play ~p~n", [{E,R, erlang:get_stacktrace()}])
-        end
-    end;
-
-html(_Req, {wrapup}=State) ->
-    {Block} = State,
-    block(Block);
-
-html(_Req, {over}=State) ->
-    {Block} = State,
-    block(Block);
-
-html(_Req, State) ->
-    placeholder(io_lib:format("~p ?", [State])).
-
+    Id0 = cowboy_req:binding(id, Req, none),
+    Id = binary_to_integer(Id0),
+    [{_, ToAddress}] = cowboy_req:parse_qs(Req),
+    Props0 = mw_contract:get_t3_for_signing(Id, ToAddress),
+    {ok, ServerHost} = application:get_env(mw, server_host),
+    Props = Props0 ++ [{server_host, ServerHost},
+                       {contract_id, Id},
+                       {to_address, ToAddress}],
+    merge(block(cashout2), Props).
 
 %% ----------------------------------------------------------------------------
 %% Bets Lists
 %% ----------------------------------------------------------------------------
-
 %% Create HTML that displays bet offerings.
 bets_html(DataList) ->
     Template = block("bet.html"),
-    [ bet_html(Template, Data) || Data <- DataList ].
+    [bet_html(Template, Data ++ [{<<"amount">>, <<"0.0004 BTC">>}]) ||
+                 Data <- DataList].
 
 bet_html(Template, Data) ->
     merge(Template, Data).
 
-
 %% ----------------------------------------------------------------------------
 %% Dynamic Pages
 %% ----------------------------------------------------------------------------
-
 %% load the HTML from a template block
 block(Name) when is_atom(Name)->
     File = atom_to_list(Name) ++ ".html",
@@ -263,61 +245,25 @@ full_path(Name) ->
     %% io:format("file dir: ~p~n", [code:priv_dir(middle_server)]),
     filename:join([code:priv_dir(middle_server), "blocks/" ++ Name]).
 
-%% Sample data to be injected into the HTML
-samples() ->
-    [
-     [{bet, "Germany beat Brazil"},
-      {yes_amount, "2"},
-      {no_amount, "3"},
-      {yes_bidder, "Hans Langen"},
-      {yes_pubkey, "#1dkuebmicbfviwkjnbepivavriongerjvdfkjn"},
-      {no_bidder, "YOU?"},
-      {no_pubkey, "--"},
-      {smallprint, "small print"}],
-     [{bet, "Honduras beat England"},
-      {yes_amount, "1"},
-      {no_amount, ".1"},
-      {yes_bidder, "Bertl Gust"},
-      {yes_pubkey, "#yTgtYhj64dggryew2bd32131141ngerjvdf342"},
-      {no_bidder, "YOU?"},
-      {no_pubkey, "--"},
-      {smallprint, "small print"}]
-    ].
-
 %% Join a flat data structure and a HTML template.
 %% E.g. merge(<<"<a href=hello.html>$HELLO</a>">>, [{hello, "Hej!"}])
 %% results into <<"<a href=hello.html>Hej!</a>">>
 merge(Template, []) ->
     Template;
 
-merge(Template, [{Tag, Value} | Data]) ->
-    Search = "\\$" ++ string:to_upper(to_list(Tag)),
-    String = to_list(Value),
-    io:format("search ~p~n", [Search]),
-    Replaced = re:replace(Template, Search, String, [global, {return, list}]),
+merge(Template, [{Tag0, Value0} | Data]) ->
+    Tag = to_binary(Tag0),
+    RE = binary:list_to_bin(
+           "\\$" ++ string:to_upper(binary:bin_to_list(Tag))),
+    Replacement = to_binary(Value0),
+    Replaced = re:replace(Template, RE, Replacement,
+                          [global, {return, binary}]),
     merge(Replaced, Data).
 
-to_list([H|_]=A) when is_list(A), is_integer(H) ->
-    A;
-
-to_list([H|[]]) ->
-    io_lib:format("~p", [H]);
-
-to_list(A) when is_list(A) ->
-    io_lib:format("~p", [A]);
-
-to_list(A) when is_atom(A) ->
-    atom_to_list(A);
-
-to_list(A) when is_binary(A) ->
-    binary_to_list(A);
-
-to_list(A) when is_integer(A) ->
-    integer_to_list(A).
-
-%% Placeholder for pages under construction
-placeholder(S) ->
-    "<h3>" ++ S ++ "</h3>".
+to_binary(X) when is_list(X)        -> list_to_binary(X);
+to_binary(X) when is_integer(X)     -> list_to_binary(integer_to_list(X));
+to_binary(X) when is_atom(X)        -> list_to_binary(atom_to_list(X));
+to_binary(X) when is_binary(X)      -> X.
 
 %% dump a prop list
 prop_to_html(Prop) ->

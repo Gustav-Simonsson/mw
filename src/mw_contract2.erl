@@ -20,6 +20,7 @@
 -export([]). %% TODO: remove export_all and add API exports
 
 -include("mw.hrl").
+-include("btc.hrl").
 -include("mw_contract.hrl").
 -include("log.hrl").
 -include("mw_api_errors.hrl").
@@ -38,7 +39,8 @@ get_contract_state(Id) ->
     EventPubkey = GetInfo(<<"event_pubkey">>),
     GiverPubkey = GetInfo(<<"giver_ec_pubkey">>),
     TakerPubkey = GetInfo(<<"taker_ec_pubkey">>),
-    Value       = <<"70000">>,
+    Value       = list_to_binary(
+                    integer_to_list((?T1_AMOUNT_INT * 2) - ?BITCOIN_MIN_FEE)),
 
     %% TODO: only return the strictly needed encrypted
     %% privkeys instead of all of them
@@ -249,7 +251,7 @@ submit_t3_signatures(ContractId, T3Signature1Hex, T3Signature2Hex) ->
 %%% Internal functions
 %%%===========================================================================
 get_contract_info(Id) ->
-    {ok, MatchNo, Headline, Desc, Outcome,
+    {ok, Headline, Outcome,
      EventPubkey, GiverECPubkey, TakerECPubkey,
      GiverEncECPrivkey, TakerEncECPrivkey,
      GiverEncRSAPrivkey, TakerEncRSAPrivkey,
@@ -261,9 +263,7 @@ get_contract_info(Id) ->
     %% avoid the temptation of using them directly to have separation between
     %% postgres schema and JSON API schema
     {ok, [
-          {<<"match_no">>, MatchNo},
           {<<"headline">>, Headline},
-          {<<"desc">>, Desc},
           {<<"outcome">>, Outcome},
           {<<"event_pubkey">>, EventPubkey},
           {<<"giver_ec_pubkey">>, GiverECPubkey},

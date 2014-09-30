@@ -1,50 +1,14 @@
 <div class=main>
-
-  <h4>Contract Status</h4>
   <h2>$HEADLINE</h2>
-  
-  <p>
-    $STATUS
-  </p>
-
-
-  <h4>State Dump</h4>
-
-  <p>
-    $DUMP
-  </p>
-
-
-  <h4>Instructions</h4>
-  <p>
-    <ll>
-      <li> 
-        Please bookmark and reload this page to learn about the 
-        contract status.
-      </li>
-      <li> 
-        $INSTRUCTIONS
-      </li>
-    </ll>  
-  </p>
-
-  <p>
-    <a href=cashout.html>continue</a>
-  </p>
-
-  <hr />
-
-  <h4>Notes</h4>
-  <p>
-    <ll>
-      <li> 
-        We do not hold the money at any time, it is locked in the blockchain.
-      </li>
-    </ll>
-  </p>
-
-  <p>
-    <a href=cashout.html>continue</a>
-  </p>
-
+  <p>$STATUS</p>
+  <p>Event outcome: $OUTCOME</p>
+  <p>Event Pubkey: $EVENT_PUBKEY</p>
+  <p>Giver Pubkey: $GIVER_PUBKEY</p>
+  <p>Taker Pubkey: $TAKER_PUBKEY</p>
+  <p>Taker Address: $TAKER_ADDRESS</p>
+  <p>T2 tx hash: $T2_HASH</p>
+  <p>T3 tx hash: $T3_HASH</p>
+  <p><a href=/prep/$CONTRACT_ID>Enter Bet</a></p>
+  <p><a href=/sign/$CONTRACT_ID>Sign Bet</a></p>
+  <p><a href=/cashout/$CONTRACT_ID>Cashout Bet</a></p>
 </div>

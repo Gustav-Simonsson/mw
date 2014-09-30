@@ -103,22 +103,15 @@ start(_Type, _Args) ->
     HTMLDispatch = cowboy_router:compile(
                      [
                       {'_', [
-                             {"/index.html",    page_handler, {index}},
-                             {"/about.html",    page_handler, {about}},
-                             {"/intro.html",    page_handler, {intro}},
-                             {"/bets.html",     page_handler, {bets}},
-                             {"/details.html",  page_handler, {details}},
-                             {"/flow.html",     page_handler, {flow}},
+                             {"/",              page_handler, {bets}},
                              {"/prep/:id",      page_handler, {prep}},
                              {"/pend.html",     page_handler, {pend}},
                              {"/sign/:id",      page_handler, {sign}},
                              {"/followup.html", page_handler, {followup}},
                              {"/status/:id",    page_handler, {status}},
-                             {"/events.html",   page_handler, {events}},
-                             {"/cashout.html",  page_handler, {cashout}},
-                             {"/cashout2.html", page_handler, {cashout2}},
+                             {"/cashout/:id",   page_handler, {cashout}},
+                             {"/cashout2/:id",  page_handler, {cashout2}},
                              {"/wrapup.html",   page_handler, {wrapup}},
-                             {"/over.html",     page_handler, {over}},
                              {"/[...]", cowboy_static,
                               {priv_dir, middle_server, "",
                                [{mimetypes, cow_mimetypes, all}]}}
