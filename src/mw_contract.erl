@@ -202,8 +202,8 @@ get_contract_info(Id) ->
           {"t2_sighash_input_1", T2SigHashInput1},
           {"t2_hash", T2Hash},
           {"t2_raw", T2Raw},
-          {"t3_raw", T2Raw},
-          {"t3_hash", T2Raw},
+          {"t3_raw", T3Raw},
+          {"t3_hash", T3Hash},
           {"history", lists:map(fun({Timestamp, Event}) ->
                                         [{"timestamp", Timestamp},
                                          {"event", Event}]
@@ -348,7 +348,13 @@ do_get_t3_for_signing(ContractId, ToAddress) ->
             ?API_ERROR(?CONTRACT_T2_NOT_COMPLETE);
         {true, false, false} ->
             %% Event outcome has not happened yet
-            ?API_ERROR(?NO_EVENT_OUTCOME);
+            %% TODO: remove this demo hardcoding of event outcome:
+            case ContractId of
+                1 -> add_event_outcome(ContractId, false); %% taker wins
+                2 -> add_event_outcome(ContractId, true) %% giver wins
+            end,
+            do_get_t3_for_signing(ContractId, ToAddress);
+            %% ?API_ERROR(?NO_EVENT_OUTCOME);
         {true, true, false} ->
             %% T2 broadcasted, event outcome happened, time to grab T3 from Bj.
             FinalT2Hash = GetInfo("t2_hash"),

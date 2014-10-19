@@ -191,7 +191,7 @@ html(Req, {status}=_State) ->
                {taker_pubkey, TakerPubkey},
                {taker_address, TakerAddr},
                {t2_hash, T2Hash},
-               {t3_hash, T2Hash}
+               {t3_hash, T3Hash}
              ])
         end
     end;
