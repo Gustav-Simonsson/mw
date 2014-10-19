@@ -1,104 +1,19 @@
 <div class=main>
-
-  <h3>Cashout</h3>
-
   <p>
     <ll>
       <li>
-        $HEADLINE
-      </li>
-    </ll>
-  </p>
-
-  <h4>Instructions</h4>
-  <p>
-    <ll>
-      <li>
-        Please enter your passphrase and click 'sign'.:
+        Please enter password:
         <textarea id=signer_passphrase class=mark></textarea>
         <br />
       </li>
     </ll>
   </p>
-
-  <button class=mark onClick="sign()">sign</button>
-
-    <li><b>1. To Address (receives winnings) (base58check) :</b>
-    <br />
-    <p style="font-family: monospace; white-space: pre;"> $TO_ADDRESS </p>
+  <button class=mark onClick="sign()">Sign</button>
+  <p></p>
+  <br>
+    <li><b>Address that will receive winnings: </b>$TO_ADDRESS
     </li>
-  <p>
-    <a href=wrapup.html>cashout</a>
-  </p>
-
   <hr />
-
-  <h4>Notes</h4>
-  <p>
-    <ul>
-      <li>
-        Technically, what happens here is this:
-        <ul>
-          <li>
-             the double-encrypted WINNING KEY is now decrypted
-            <ul>
-              <li>
-                 .. using your personal, one time SECURITY KEY
-              </li>
-              <li>
-                 .. and the ORACLE KEY that was released at event outcome
-              </li>
-              <li>
-                 the resulting is the decrypted WINNING KEY.
-              </li>
-            </ul>
-          </li>
-          <li>
-             This is used to unlock the waged amount in the betting contract
-          </li>
-            <ul>
-              <li>
-                 .. signing it with this WINNING KEY and also
-              </li>
-              <li>
-                 .. signing it with your SIGNATURE KEY
-              </li>
-              <li>
-                 .. to transfer the amount to the address you entered on the previous page.
-              </li>
-            </ul>
-          <li>
-             After you click 'sign' the Bitcoins should arrive in your wallet after about 10 minutes.
-          </li>
-        </ul>
-      </li>
-      <li>
-        We never held the money, it was locked into the blockchain.
-      </li>
-      <li>
-        The money is fully yours the moment you receive the WINNING KEY.
-      </li>
-        <ul>
-          <li>
-            .. even if you do not execute this page, you safely own the won Bitcoins
-          </li>
-          <li>
-            .. this page mererly helps you to put the won Bitcoins back into your wallet
-          </li>
-          <li>
-            .. but note that you might loose Bitcoins that are not moved for 10 years, or less
-          </li>
-        </ul>
-      <li>
-        Ajax call: <p id=url></p>
-      </li>
-      <li>
-        Ajax result: <p id=result></p>
-      </li>
-
-    </ul>
-  </p>
-
 </div>
 
     <!-- LIBS -->

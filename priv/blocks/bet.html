@@ -1,75 +1,11 @@
 <div class=s>
-  <div class="block desc">
-    <div class="headline desc">
-      <div class="headline first">
-          <a href=prep/$EVENT_ID>      
-            $HEADLINE
-          </a>
-      </div>
-    </div>
-  </div>
-
-  <div class="transblock party">
-    <div class="halfblock yes">
-      <span class="lettering1">
-        Yes
-      </span>
-      <small class="lettering2 loviz">
-        <small>BTC</small>
-      </small>
-      <small class="lettering1">
-        $YES_AMOUNT
-      </small>
-    </div>
-
-    <div class="halfblock no">
-      <span class="lettering1">
-        No
-      </span>
-      <small class="lettering2 loviz">
-        <small>BTC</small>
-      </small>
-      <small class="lettering1">
-        $NO_AMOUNT
-      </small>
-    </div>
-  </div>
-
-  <div class="transblock party">
-    <div class="halfblock party">
-      <div class="feature party">
-        $YES_BIDDER
-      </div>
-      <div class="feature pubkey midviz">
-        $GIVER_EC_PUBKEY
-      </div>
-      <div class="smallprint hiviz">
-        Put BTC $YES_AMOUNT in, get BTC $NO_AMOUNT out
-      </div>
-    </div>
-
-    <div class="halfblock party">
-      <div class="feature party">
-        $NO_BIDDER
-      </div>
-      <div class="feature pubkey midviz">
-        $TAKER_EC_PUBKEY
-      </div>
-      <div class="smallprint">
-        Put BTC $NO_AMOUNT in, get BTC $YES_AMOUNT out
-      </div>
-    </div>
-  </div>
-
-  <div class="block">
-    <div class="feature oracle">
-      $EVENT_PUBKEY
-    </div>
-  </div>
-
-  <div class="block block_smallprint">
-    <div class="smallprint">
-      $DESCRIPTION
-    </div>
-  </div>
+  <a href=status/$ID>
+    <p>$HEADLINE <br>
+       <b>$AMOUNT</b> Winner takes all. <br>
+    </p>
+    <p>Taker Bitcoin public key: $TAKER_EC_PUBKEY <br>
+       Giver Bitcoin public key: $GIVER_EC_PUBKEY <br>
+       Event Bitcoin public key: $EVENT_PUBKEY
+    </p>
+  </a>
 </div>

@@ -25,7 +25,6 @@
 -include("mw.hrl").
 -include("log.hrl").
 -include("mw_api_errors.hrl").
-
 -include("btc.hrl").
 
 -define(ENABLE_PROFILING, true).
@@ -46,19 +45,18 @@ get_unsigned_t2(GiverPubkey0, TakerPubkey0, EventPubkey0, OutputAmount0) ->
     %% TODO: support any open output combination where there is enough total
     %% amount available for joining T2 tx.
     %% For now, support only that last open output has demo amount (0.002 BTC).
-    {GiverOpenOutput, TakerOpenOutput} =
+    {TakerOpenOutput, GiverOpenOutput} =
         try
-            #{acc := GiverAcc} = parse(ecpubkey_to_addr(GiverPubkey)),
-            #{acc := TakerAcc} = parse(ecpubkey_to_addr(TakerPubkey)),
-            {GiverAcc, TakerAcc}
+            {get_address_utxo(ecpubkey_to_addr(TakerPubkey)),
+             get_address_utxo(ecpubkey_to_addr(GiverPubkey))}
         catch E:R ->
                 ?error("Open output parsing crashed: ~p",
                        [{E,R,erlang:get_stacktrace()}]),
                 ?API_ERROR(?BLOCKCHAIN_PARSING_FAILED)
         end,
     case {GiverOpenOutput, TakerOpenOutput} of
-        {[{_,_,_,40000}],
-         [{_,_,_,40000}]} ->
+        {[{_,_,_,?T1_AMOUNT_INT} | _],
+         [{_,_,_,?T1_AMOUNT_INT} | _]} ->
             UnsignedT2 =
                 make_raw_t2_tx(lists:append([GiverOpenOutput, TakerOpenOutput]),
                                GiverPubkey, TakerPubkey, EventPubkey,
@@ -92,11 +90,11 @@ sign_and_submit_t2_signatures(TakerECPubkeyB58Check,
     TakerECPubkey    = mw_lib:dec_b58check(TakerECPubkeyB58Check),
     GiverECPrivkey   = mw_lib:dec_b58check(GiverECPrivkeyB58Check),
     GiverECPubkey    = mw_lib:dec_b58check(GiverECPubkeyB58Check),
-    
+
     TakerT2Signature = mw_lib:hex_to_bin(TakerT2SignatureHex),
     T2SigHashInput0  = mw_lib:hex_to_bin(T2SigHashInput0Hex),
     UnsignedT2       = mw_lib:hex_to_bin(UnsignedT2Hex),
-    
+
     GiverT2Signature = sign_tx_hash(T2SigHashInput0, GiverECPrivkey),
     GiverScriptSig   = make_scriptsig(GiverT2Signature, GiverECPubkey),
     TakerScriptSig   = make_scriptsig(TakerT2Signature, TakerECPubkey),
@@ -159,7 +157,7 @@ get_unsigned_t3(FinalT2, FinalT2Hash, T3ToAddress) ->
     {_LenLen2, ScriptSigLen2, R6} = parse_varint(R5),
     <<_ScriptSig2:ScriptSigLen2/bytes, R7/binary>> = R6,
     <<_Seq2:4/bytes, R8/binary>> = R7,
-    
+
     <<16#01,
       %% Now we're at the T2 output - which is referenced in the T3 input.
       T2OutputValue:64/little-integer,
@@ -236,35 +234,33 @@ bitcoin_signature_der(<<16#30,
                         _HashType>>) -> true;
 bitcoin_signature_der(_Bin) -> false.
 
+get_address_utxo(Address) ->
+    case query_address_in_mempool(Address) of
+        {ok, MemPoolOO} ->
+            ?info("Mempool OO: ~p", [MemPoolOO]),
+            [MemPoolOO];
+        not_found ->
+            ?info("No open outputs for address in mempool. "
+                  "Starting parsing of blockchain ~p seconds into the past",
+                  [?BLOCK_TIMESTAMP_PARSE_LIMIT]),
+            {Time, Value} =
+                timer:tc(fun() -> query_address_in_blockchain(Address) end),
+            ?info("Blockchain OO parsing took: ~p ms", [Time div 1000]),
+            #{acc := Acc} = Value,
+            OOs = lists:flatten(Acc),
+            ?info("Blockchain OOs: ~p", [OOs]),
+            OOs
+    end.
+
+
 %%%===========================================================================
 %%% Internal functions
 %%%===========================================================================
 %%%===========================================================================
 %%% Blockchain parsing
 %%%===========================================================================
-
-%% ?info("BlockFiles: ~p", [BlockFiles]),
-%% mw_btc:t("1AUHj3DKMtTR7jLyxG2XQFQFNSWQPUWy9n", false).
-t(Address, Profile) ->
-    Res =
-        case Profile of
-            false -> parse(Address);
-            true ->
-                fprof:trace(start),
-                {Time, Value} =
-                    timer:tc(fun() -> parse(Address) end),
-                fprof:trace(stop),
-                fprof:profile(),
-                ?info("Parse time (milliseconds): ~p", [Time div 1000]),
-                Value
-        end,
-    #{acc := Acc} = Res,
-    lists:flatten(Acc).
-
-parse(Address) ->
+query_address_in_blockchain(Address) ->
     AddrHash = addr_to_hash(Address),
-    ?info("Starting parsing of open outputs for address: ~p", [Address]),
-
     {ok, FileNames} = file:list_dir(filename:join([?BITCOIND_DIR, "blocks"])),
     IsBlockFile = fun([$b, $l, $k | _]) -> true; (_) -> false end,
     BlockFiles0 =
@@ -318,15 +314,6 @@ parse_txs(Txs, TxCount, State) ->
     TxLen = 4 + TxInsLenLen + TxInsLen + TxOutsLenLen + TxOutsLen + 4,
     <<Tx:TxLen/bytes, _/binary>> = Txs,
     TxHash = mw_lib:rev_bin(mw_lib:double_sha256(Tx)),
-
-    case TxHash of
-        <<165,12,125,93,39,223,191,99,37,224,50,50,199,127,211,144,231,34,206,99,60,61,
-          143,32,130,204,13,79,30,37,204,216>> ->
-            ?info("Tx: ~p", [mw_lib:bin_to_hex(Tx)]);
-        _ ->
-            no_op
-    end,
-
     AddTxHash = fun({Index, ScriptPubkey, Value}) ->
                         {TxHash, Index, ScriptPubkey, Value} end,
     State4 =
@@ -336,7 +323,6 @@ parse_txs(Txs, TxCount, State) ->
             _  ->
                 %% ?info("Tx: ~p", [mw_lib:bin_to_hex(Tx)]),
                 %% ?info("Tx hash: ~p", [mw_lib:bin_to_hex(mw_lib:rev_bin(TxHash))]),
-
                 #{acc := A} = State3,
                 maps:update(acc, lists:append(lists:map(AddTxHash, OutsAcc), A),
                             State3)
@@ -435,58 +421,6 @@ parse_block_header(<<FirstFour:4/bytes,
 %%%===========================================================================
 %%% Tx
 %%%===========================================================================
-%%   mw_btc:t().
-t() ->
-    {ok, ECPubkey0} =
-        file:read_file(filename:join(code:priv_dir(middle_server),
-                                     "test_keys/generic_ec_keys1/ec_pubkey")),
-    ECPubkey = mw_lib:dec_b58check(binary:replace(ECPubkey0, <<"\n">>, <<>>)),
-    {ok, ECPrivkey0} =
-        file:read_file(filename:join(code:priv_dir(middle_server),
-                                     "test_keys/generic_ec_keys1/ec_privkey")),
-    ECPrivkey = mw_lib:dec_b58check(binary:replace(ECPrivkey0, <<"\n">>, <<>>)),
-    Address = ecpubkey_to_addr(ECPubkey),
-    ?info("ECPubkey: ~p", [mw_lib:bin_to_hex(ECPubkey)]),
-    ?info("Addr: ~p", [Address]),
-    #{acc := OpenOutputs} = parse(Address),
-    ?info("Open outsputs: ~p", [OpenOutputs]),
-    [{OutPointTxHash, OutPointIndex, ScriptPubkey, Value}] = OpenOutputs,
-    ?info("OutPointTxHash: ~p, Index: ~p, ScriptPubKey: ~p",
-          [OutPointTxHash, OutPointIndex, ScriptPubkey]),
-    NewValue = Value - 10000,
-    ?info("NewValue: ~p", [NewValue]),
-    ToAddress = <<"1AUHj3DKMtTR7jLyxG2XQFQFNSWQPUWy9n">>,
-    TxToSign0 = make_raw_tx([{OutPointTxHash, OutPointIndex}],
-                           ScriptPubkey,
-                           [{NewValue, ToAddress}]),
-    TxHashToSign = make_tx_sighash(TxToSign0),
-    Signature = sign_tx_hash(TxHashToSign, ECPrivkey),
-    ?info("Signature: ~p", [mw_lib:bin_to_hex(Signature)]),
-    ScriptSig = <<(byte_size(Signature)), Signature/binary,
-                  (byte_size(ECPubkey)), ECPubkey/binary>>,
-    FinalTx = make_raw_tx([{OutPointTxHash, OutPointIndex}],
-                          ScriptSig,
-                          [{NewValue, ToAddress}]),
-    ?info("Final tx: ~p", [mw_lib:bin_to_hex(FinalTx)]),
-
-    JSONParams =
-        [
-         mw_lib:bin_to_hex(FinalTx)
-        ],
-    JSONBody = jiffy:encode({[
-                              {<<"jsonrpc">>, <<"1.0">>},
-                              {<<"id">>, <<"for_rachael">>},
-                              {<<"method">>, <<"sendrawtransaction">>},
-                              {<<"params">>, JSONParams}
-                             ]}),
-    B64 = base64:encode(?BITCOIND_JSON_RPC_USER ++ ":" ++ ?BITCOIND_JSON_RPC_PASS),
-    Auth = "Basic " ++ binary_to_list(B64),
-    Headers = [{"Content-Type", "text/plain"},
-               {"Authorization", Auth}],
-    Resp = lhttpc:request(?BITCOIND_URL, post, Headers, JSONBody, 5000),
-    ?info("Resp: ~p", [Resp]),
-    ok.
-
 sign_tx_hash(TxHash, ECPrivkey) ->
     %% 81 is hashtype / sig flags byte for SIGHASH_ALL + SIGHASH_ANYONECANPAY
     %% 01 is hashtype / sig flags byte for SIGHASH_ALL
@@ -582,24 +516,95 @@ addr_to_hash(Address) ->
 
 send_raw_tx_to_bitcoind(Tx) ->
     JSONParams = [mw_lib:bin_to_hex(Tx)],
-    JSONBody = jiffy:encode({[
-                              {<<"jsonrpc">>, <<"1.0">>},
-                              {<<"id">>, <<"for_rachael">>},
-                              {<<"method">>, <<"sendrawtransaction">>},
-                              {<<"params">>, JSONParams}
-                             ]}),
+    FinalTxHash = call_bitcoind_api(<<"sendrawtransaction">>, JSONParams),
+    {ok, FinalTxHash}.
+
+get_bitcoind_mempool() ->
+    call_bitcoind_api(<<"getrawmempool">>, []).
+
+query_address_in_mempool(Address) ->
+    T1 = os:timestamp(),
+    AddrHash = addr_to_hash(Address),
+    TxHashes = get_bitcoind_mempool(),
+    TxCount = length(TxHashes),
+    ?info("TxHashes count: ~p", [TxCount]),
+    %% Down and Dirty Erlang scaling <3
+    %% We call bitcoind with 4 concurrent threads to speed things up.
+    %% We can only scale to 4 threads without a recompile of bitcoind due to:
+    %% https://github.com/litecoin-project/litecoin/issues/67
+    {Part1, Rest1} = lists:split(TxCount div 4, TxHashes),
+    {Part2, Rest2} = lists:split(TxCount div 4, Rest1),
+    {Part3, Part4} = lists:split(TxCount div 4, Rest2),
+    Parts = [Part1, Part2, Part3, Part4],
+    Pid = self(),
+    Spawn = fun(L) -> spawn_link(fun() -> query_txs(L, AddrHash, Pid) end) end,
+    lists:foreach(Spawn, Parts),
+    Res = receive_results(3),
+    T2 = os:timestamp(),
+    Time = timer:now_diff(T2, T1),
+    ?info("query_address_in_mempool on ~p txs: ~p ms",
+          [TxCount, Time div 1000]),
+    Res.
+
+query_txs([], _AddrHash, Pid) ->
+    Pid ! done;
+query_txs([TxHash | TxHashes], AddrHash, Pid) ->
+    TxHex = get_bitcoind_tx(TxHash),
+    case query_addrhash_in_tx(AddrHash, TxHex) of
+        not_found ->
+            query_txs(TxHashes, AddrHash, Pid);
+        {found, OO} ->
+            Pid ! {found, OO}
+    end.
+
+receive_results(ProcsLeft) ->
+    receive
+        done ->
+            case ProcsLeft of
+                0 -> not_found;
+                _ -> receive_results(ProcsLeft - 1)
+            end;
+        {found, OO} ->
+            {ok, OO}
+    end.
+
+query_addrhash_in_tx(AddrHash, TxHex) ->
+    Tx = mw_lib:hex_to_bin(TxHex),
+    {_, AccRes} = parse_txs(Tx, 1, #{addr_hash => AddrHash, acc => []}),
+    #{acc := Acc} = AccRes,
+    MatchingOpenOutput =
+        fun({_H,_I,_SPK,V}) when V =:= ?T1_AMOUNT_INT -> true; (_) -> false end,
+    case lists:filter(MatchingOpenOutput, Acc) of
+        [] ->
+            not_found;
+        Matching ->
+            {found, hd(Matching)}
+    end.
+
+get_bitcoind_tx(TxHash) ->
+    call_bitcoind_api(<<"getrawtransaction">>, [TxHash]).
+
+call_bitcoind_api(Command, JSONParams) ->
     B64 = base64:encode(?BITCOIND_JSON_RPC_USER ++ ":" ++ ?BITCOIND_JSON_RPC_PASS),
     Auth = "Basic " ++ binary_to_list(B64),
     Headers = [{"Content-Type", "text/plain"},
                {"Authorization", Auth}],
+    JSONPL =
+        [
+         {<<"jsonrpc">>, <<"1.0">>},
+         {<<"id">>, <<"for_rachael">>},
+         {<<"method">>, Command},
+         {<<"params">>, JSONParams}
+        ],
+    JSONBody = jiffy:encode({JSONPL}),
+    %% ?info("JSON body: ~p", [JSONBody]),
     Resp = lhttpc:request(?BITCOIND_URL, post, Headers, JSONBody, 5000),
-    ?info("bitcoind response sendrawtransaction response : ~p", [Resp]),
+    %% ?info("bitcoind ~s response: ~p", [Command, Resp]),
     {ok,{{200,"OK"}, _HTTPRespPL, JSONResp}} = Resp,
-    {[{<<"result">>,
-       FinalTxHash},
-      {<<"error">>,null},
-      {<<"id">>,<<"for_rachael">>}]} = jiffy:decode(JSONResp),
-    {ok, FinalTxHash}.
+    {[{<<"result">>, Result},
+      {<<"error">>, null},
+      {<<"id">>, _Id}]} = jiffy:decode(JSONResp),
+    Result.
 
 %%%===========================================================================
 %%% Tests

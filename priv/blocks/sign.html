@@ -1,69 +1,9 @@
 <div class=main>
-
-  <h3>Sign the Bet</h3>
-
-  <h4>Instructions</h4>
-  <p>
-    <ll>
-      <li>
-        Please Enter passphrase and click 'sign'.
-      </li>
-    </ll>
-  </p>
-  <p>
-    This signs the bet. It locks the amount you wage into the blockchain
-    until the bet is resolved.
-  </p>
-
+  <p>Please enter password</p>
   <textarea id=signer_passphrase class=mark></textarea>
-
-  <button class=mark onClick="sign()">sign</button>
-
-  <p id=status>
-  </p>
-
-    <!-- a href=/followup.html>continue</a -->
-
-  <hr />
-
-  <h4>Notes</h4>
+  <button class=mark onClick="sign()">Sign</button>
   <p>
     <ll>
-      <li>
-        If you win the bet, you will receive another key, the Winner Key.
-      </li>
-      <li>
-        You will use the private key you copied earlier, and the Winner key,
-        to transfer the won amount into your wallet.
-      </li>
-      <li>
-        The Winner Key makes you the owner of the contract transaction.
-      </li>
-      <li>
-        You could leave the Bitcoins there, but should transfer them into
-        your wallet.
-      </li>
-      <li>
-        That is more convenient, more visible and safer.
-      </li>
-      <li>
-        We do not hold the money at any time, it is locked in the blockchain.
-      </li>
-      <li>
-        T2 raw: $T2_RAW
-      </li>
-      <li>
-        T2 sighash input 0: $T2_SIGHASH_INPUT_0
-      </li>
-      <li>
-        T2 sighash input 1: $T2_SIGHASH_INPUT_1
-      </li>
-      <li>
-        Giver ec pubkey: $GIVER_EC_PUBKEY
-      </li>
-      <li>
-        Taker ec pubkey: $TAKER_EC_PUBKEY
-      </li>
       <li>
         Ajax call: <p id=url></p>
       </li>

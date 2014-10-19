@@ -175,21 +175,19 @@ get_contract_t2_state(Id) ->
     end.
 
 get_contract_info(Id) ->
-    {ok, MatchNo, Headline, Desc, Outcome,
+    {ok, Headline, Outcome,
      EventPubkey, GiverECPubkey, TakerECPubkey,
      GiverEncECPrivkey, TakerEncECPrivkey,
      GiverEncRSAPrivkey, TakerEncRSAPrivkey,
      EncEventKeyYes, EncEventKeyNo,
-     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash,
+     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw, T3Hash,
      FormatedEvents} =
         mw_pg:select_contract_info(Id),
     %% Some of these fields have same name as Postgres column names, but we
     %% avoid the temptation of using them directly to have separation between
     %% postgres schema and JSON API schema
     {ok, [
-          {"match_no", MatchNo},
           {"headline", Headline},
-          {"desc", Desc},
           {"outcome", Outcome},
           {"event_pubkey", EventPubkey},
           {"giver_ec_pubkey", GiverECPubkey},
@@ -204,6 +202,8 @@ get_contract_info(Id) ->
           {"t2_sighash_input_1", T2SigHashInput1},
           {"t2_hash", T2Hash},
           {"t2_raw", T2Raw},
+          {"t3_raw", T2Raw},
+          {"t3_hash", T2Raw},
           {"history", lists:map(fun({Timestamp, Event}) ->
                                         [{"timestamp", Timestamp},
                                          {"event", Event}]
@@ -230,7 +230,7 @@ create_oracle_keys(NoPubkey, NoPrivkey, YesPubkey, YesPrivkey) ->
                                         YesPubkey, YesPrivkey),
     {ok, Id}.
 
-create_event(MatchNum, Headline, Desc, OracleKeysId,
+create_event(Headline, OracleKeysId,
              EventPrivkey, EventPubkey) ->
     {ok, NoPubkeyPEM, YesPubkeyPEM} = mw_pg:select_oracle_keys(OracleKeysId),
     {ok, NoPubkey}  = mw_lib:pem_decode_bin(NoPubkeyPEM),
@@ -240,7 +240,7 @@ create_event(MatchNum, Headline, Desc, OracleKeysId,
     EventPrivkeyEncWithOracleYesKey =
         mw_lib:hybrid_aes_rsa_enc(EventPrivkey, YesPubkey),
     {ok, EventId} =
-        mw_pg:insert_event(MatchNum, Headline, Desc, OracleKeysId, EventPubkey,
+        mw_pg:insert_event(Headline, OracleKeysId, EventPubkey,
                            EventPrivkeyEncWithOracleNoKey,
                            EventPrivkeyEncWithOracleYesKey),
     {ok, EventId}.
@@ -395,6 +395,8 @@ do_submit_t3_signatures(ContractId, T3RawHex, T3Signature1Hex, T3Signature2Hex) 
     {ok, FinalT3, FinalT3TxHash} =
         mw_btc:submit_t3_signatures(T3Raw, T3Signature1, T3Signature2),
     ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_SIGNED_T3),
+    ok = mw_pg:insert_contract_event(ContractId, ?STATE_DESC_T3_BROADCASTED),
+    ok = mw_pg:update_contract_t3(ContractId, FinalT3, FinalT3TxHash),
     [
      {"new-t3-hash", FinalT3TxHash},
      {"new-t3-raw", FinalT3}
