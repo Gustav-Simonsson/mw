@@ -8,7 +8,7 @@ The AIX contract middleware enables insurances and bets on the Bitcoin blockchai
      File        : README.md
      Copyright   : ai effect UG, Berlin
      Author      : H. Diedrich <hd2010@eonblast.com>, G. Simonsson <gustav.simonsson@gmail.com>
-     License     : all rights reserved
+     License     : All rights reserved
      Created     : 24 May 2014
 
 ![alt tag](../master/priv/blade_runner/intro.gif?raw=true)

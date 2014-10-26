@@ -3,9 +3,8 @@
 %%% Version     : 0.5.x/first round trip                                    %%%
 %%% File        : middle_server_app.erl                                     %%%
 %%% Description : main module, starting the Cowboy host                     %%%
-%%% Copyright   : AI Effect Group, Berlin                                   %%%
+%%% Copyright   : AI Effect Group, Berlin. All rights reserved.             %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
-%%% License     : MIT                                                       %%%
 %%% Created     : 24 May 2014                                               %%%
 %%% Changed     : 22 June 2014                                              %%%
 %%%-------------------------------------------------------------------------%%%

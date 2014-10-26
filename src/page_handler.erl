@@ -3,9 +3,8 @@
 %%% Version     : 0.6.x/json flow                                           %%%
 %%% File        : page_handler.erl                                          %%%
 %%% Description : web site page creation, as a handler for Cowboy           %%%
-%%% Copyright   : AI Effect Group, Berlin                                   %%%
+%%% Copyright   : AI Effect Group, Berlin. All rights reserved.             %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
-%%% License     : MIT                                                       %%%
 %%% Created     : 24 May 2014                                               %%%
 %%% Changed     : 22 June 2014                                              %%%
 %%%-------------------------------------------------------------------------%%%

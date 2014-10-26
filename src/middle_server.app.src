@@ -3,7 +3,7 @@
 %%% Version     : 0.3.x/web flow                                            %%%
 %%% File        : middle_server.app.src                                     %%%
 %%% Description : Erlang application source file                            %%%
-%%% Copyright   : AI Effect Group, Berlin                                   %%%
+%%% Copyright   : AI Effect Group, Berlin. All rights reserved.             %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
 %%% License     : MIT                                                       %%%
 %%% Created     : 24 May 2014                                               %%%

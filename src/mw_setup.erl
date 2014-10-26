@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author Gustav Simonsom <gustav.simonson@gmail.com>
+%%% @copyright (C) 2014, AI Effect Group, Berlin. All rights reserved.
+%%% @doc
+%%% Misc dev / test functions for bootstrapping test / demo bets.
+%%% @end
+%%% Created : 06 Jun 2014 by gustav <gustav.simonsson@gmail.com>
+%%%-------------------------------------------------------------------
 -module(mw_setup).
 
 -compile(export_all).

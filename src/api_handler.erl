@@ -3,10 +3,9 @@
 %%% Version     : 0.6.x/json calls                                          %%%
 %%% File        : api_handler.erl                                           %%%
 %%% Description : json response generation, as a handler for Cowboy         %%%
-%%% Copyright   : AI Effect Group, Berlin                                   %%%
+%%% Copyright   : AI Effect Group, Berlin. All rights reserved.             %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
-%%% License     : MIT                                                       %%%
-%%% Creaxted     : 29 May 2014                                               %%%
+%%% Created     : 29 May 2014                                               %%%
 %%% Changed     : 22 Jun 2014                                               %%%
 %%%-------------------------------------------------------------------------%%%
 -module(api_handler).

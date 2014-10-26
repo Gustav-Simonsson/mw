@@ -1,6 +1,6 @@
 %%%-------------------------------------------------------------------
 %%% @author Gustav Simonsom <gustav.simonson@gmail.com>
-%%% @copyright (C) 2014, AI Effect Group, Berlin
+%%% @copyright (C) 2014, AI Effect Group, Berlin. All rights reserved.
 %%% @doc
 %%% Bitcoin protocol / blockchain. In memory of Julia, summer 2014, Berlin.
 %%%
@@ -251,7 +251,6 @@ get_address_utxo(Address) ->
             ?info("Blockchain OOs: ~p", [OOs]),
             OOs
     end.
-
 
 %%%===========================================================================
 %%% Internal functions

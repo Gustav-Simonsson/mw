@@ -3,9 +3,8 @@
 %%% Version     : 0.1.x/initial spike                                       %%%
 %%% File        : middle_server_sup.erl                                     %%%
 %%% Description : middle server supervision                                 %%%
-%%% Copyright   : AI Effect Group, Berlin                                   %%%
+%%% Copyright   : AI Effect Group, Berlin. All rights reserved.             %%%
 %%% Author      : H. Diedrich <hd2010@eonblast.com>                         %%%
-%%% License     : MIT                                                       %%%
 %%% Created     : 24 May 2014                                               %%%
 %%% Changed     : 27 May 2014                                               %%%
 %%%-------------------------------------------------------------------------%%%
