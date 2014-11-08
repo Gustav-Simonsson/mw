@@ -255,10 +255,15 @@ get_contract_info(Id) ->
      EventPubkey, GiverECPubkey, TakerECPubkey,
      GiverEncECPrivkey, TakerEncECPrivkey,
      GiverEncRSAPrivkey, TakerEncRSAPrivkey,
-     EncEventKeyYes, EncEventKeyNo,
-     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw,
+     EncEventKeyYes0, EncEventKeyNo0,
+     T2SigHashInput0, T2SigHashInput1, T2Raw, T2Hash, T3Raw, T3Hash,
      FormatedEvents} =
         mw_pg:select_contract_info(Id),
+    HexOrEmpty = fun(null) -> <<"">>;
+                    (B) when is_binary(B) -> mw_lib:bin_to_hex(B)
+                 end,
+    EncEventKeyYes = HexOrEmpty(EncEventKeyYes0),
+    EncEventKeyNo = HexOrEmpty(EncEventKeyNo0),
     %% Some of these fields have same name as Postgres column names, but we
     %% avoid the temptation of using them directly to have separation between
     %% postgres schema and JSON API schema
@@ -280,6 +285,7 @@ get_contract_info(Id) ->
           {<<"t2_sighash_input_1">>, T2SigHashInput1},
           {<<"t2_hash">>, T2Hash},
           {<<"t2_raw">>, T2Raw},
+          {<<"t3_hash">>, T3Hash},
           {<<"t3_raw">>, T3Raw},
           {<<"history">>, lists:map(fun({Timestamp, Event}) ->
                                         [{<<"timestamp">>, Timestamp},

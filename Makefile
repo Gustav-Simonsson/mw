@@ -3,7 +3,7 @@ PROJECT = middle_server
 DEPS = lager cowboy epgsql poolboy jiffy lhttpc proper bitcoin-tool
 
 dep_lager  = https://github.com/basho/lager.git
-dep_cowboy = pkg://cowboy master
+dep_cowboy = pkg://cowboy
 dep_epgsql  = https://github.com/Gustav-Simonsson/epgsql.git
 dep_poolboy = https://github.com/devinus/poolboy.git
 dep_jiffy = https://github.com/davisp/jiffy.git

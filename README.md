@@ -142,8 +142,6 @@ psql mw < priv/postgres/mw_db_drop_all
 psql mw < priv/postgres/mw_db_init
 ```
 
-You will have to give all privileges again unless you're Gustav.
-
 ``` bash
 psql -d mw
 # granting privileges

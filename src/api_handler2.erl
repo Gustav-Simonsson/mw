@@ -13,7 +13,7 @@
 -module(api_handler2).
 
 %% REST Callbacks
--export([init/3]).
+-export([init/2]).
 -export([rest_init/2]).
 -export([allowed_methods/2]).
 -export([resource_exists/2]).
@@ -27,8 +27,8 @@
 %% ----------------------------------------------------------------------------
 %% Cowboy Callbacks
 %% ----------------------------------------------------------------------------
-init(_Transport, _Req, _Paths) ->
-    {upgrade, protocol, cowboy_rest}.
+init(Req, Opts) ->
+    {cowboy_rest, Req, Opts}.
 
 rest_init(Req, Paths) ->
     {ok, Req, Paths}.
@@ -95,9 +95,9 @@ response(Req, 'enter-contract'=State) ->
                 [{contractid, Id0}] = cowboy_req:bindings(Req),
                 ContractId = erlang:list_to_integer(binary:bin_to_list(Id0)),
                 #{ec_pubkey := ECPubkey, rsa_pubkey := RSAPubkey} =
-                    cowboy_req:match_qs(Req, [ec_pubkey, rsa_pubkey]),
+                    cowboy_req:match_qs([ec_pubkey, rsa_pubkey], Req),
                 ok = mw_contract2:enter_contract(ContractId, ECPubkey, RSAPubkey),
-                Response = [{<<"success-message">>, <<"ok">>}],
+                Response = [{<<"success_message">>, <<"ok">>}],
                 ?info("Response: ~p", [Response]),
                 Response
         end,
@@ -112,13 +112,13 @@ response(Req, 'submit-t2-signature'=State) ->
                 [{contractid, Id0}] = cowboy_req:bindings(Req),
                 ContractId = erlang:list_to_integer(binary:bin_to_list(Id0)),
                 #{ec_pubkey := ECPubkey, t2_signature := T2Signature} =
-                    cowboy_req:match_qs(Req, [ec_pubkey, t2_signature]),
+                    cowboy_req:match_qs([ec_pubkey, t2_signature], Req),
                 {FinalT2Raw, FinalT2Hash} =
                     mw_contract2:submit_t2_signature(ContractId,
                                                      ECPubkey, T2Signature),
-                Response = [{<<"success-message">>, <<"ok">>},
-                            {<<"final-t2-raw">>, FinalT2Raw},
-                            {<<"final-t2-hash">>, FinalT2Hash}
+                Response = [{<<"success_message">>, <<"ok">>},
+                            {<<"final_t2_raw">>, FinalT2Raw},
+                            {<<"final_t2_hash">>, FinalT2Hash}
                            ],
                 ?info("Response: ~p", [Response]),
                 Response
@@ -134,14 +134,14 @@ response(Req, 'get-t3-for-signing'=State) ->
                 [{contractid, Id0}] = cowboy_req:bindings(Req),
                 ContractId = erlang:list_to_integer(binary:bin_to_list(Id0)),
                 #{to_address := ToAddress} =
-                    cowboy_req:match_qs(Req, [to_address]),
+                    cowboy_req:match_qs([to_address], Req),
                 {T3Sighash, T3Raw, OraclePrivkey, EncEventPrivkey} =
                     mw_contract2:get_t3_for_signing(ContractId, ToAddress),
-                Response = [{<<"success-message">>, <<"ok">>},
-                            {<<"t3-sighash">>, T3Sighash},
-                            {<<"t3-raw">>, T3Raw},
-                            {<<"oracle-privkey">>, OraclePrivkey},
-                            {<<"enc-event-privkey">>, EncEventPrivkey}
+                Response = [{<<"success_message">>, <<"ok">>},
+                            {<<"t3_sighash">>, T3Sighash},
+                            {<<"t3_raw">>, T3Raw},
+                            {<<"oracle_privkey">>, OraclePrivkey},
+                            {<<"enc_event_privkey">>, EncEventPrivkey}
                            ],
                 ?info("Response: ~p", [Response]),
                 Response
@@ -158,14 +158,14 @@ response(Req, 'submit-t3-signatures'=State) ->
                 ContractId = erlang:list_to_integer(binary:bin_to_list(Id0)),
                 #{t3_signature1 := T3Signature1,
                   t3_signature2 := T3Signature2} =
-                    cowboy_req:match_qs(Req, [t3_signature1, t3_signature2]),
+                    cowboy_req:match_qs([t3_signature1, t3_signature2], Req),
                 {FinalT3Hash, FinalT3Raw} =
                     mw_contract2:submit_t3_signatures(ContractId,
                                                       T3Signature1,
                                                       T3Signature2),
-                Response = [{<<"success-message">>, <<"ok">>},
-                            {<<"final-t3-raw">>, FinalT3Raw},
-                            {<<"final-t3-hash">>, FinalT3Hash}
+                Response = [{<<"success_message">>, <<"ok">>},
+                            {<<"final_t3_raw">>, FinalT3Raw},
+                            {<<"final_t3_hash">>, FinalT3Hash}
                            ],
                 ?info("Response: ~p", [Response]),
                 Response
